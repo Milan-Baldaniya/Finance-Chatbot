@@ -1,0 +1,19 @@
+# Environments
+backend/.env
+backend/venv/
+backend/__pycache__/
+backend/.pytest_cache/
+
+# Node
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+
+# IDEs and OS
+.vscode/
+.idea/
+.DS_Store
+
+# Temporary files
+*.log
+*.pdf
