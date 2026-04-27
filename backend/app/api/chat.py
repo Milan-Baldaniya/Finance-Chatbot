@@ -1,25 +1,42 @@
-import uuid
 from datetime import datetime
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from app.schemas.chat import ChatRequest, ChatResponse, SourceCitation
 from app.core.db import get_db
+from app.core.auth import get_current_user_id
+from app.schemas.profile import UserProfilePayload
 from app.services.llm import generate_answer, expand_query
 from app.services.embeddings import generate_embeddings
-from app.services.memory import save_message, get_recent_messages
+from app.services.memory import create_session, get_all_sessions, get_recent_messages, get_session_history, save_message, session_belongs_to_user
+from app.services.profile import get_profile as fetch_profile
+from app.services.profile import get_profile_summary, upsert_profile
 
 router = APIRouter()
 
+
 @router.post("/api/chat", response_model=ChatResponse)
-async def chat(request: ChatRequest):
+async def chat(request: ChatRequest, user_id: str = Depends(get_current_user_id)):
     """
     Accept a user question, find relevant chunks (with memory support), 
     and return an AI answer with source citations.
+    Requires authentication.
     """
     # 1. Manage Session and Memory
-    session_id = request.session_id or str(uuid.uuid4())
-    save_message(session_id, "user", request.question)
-    # Fetch the last 50 messages to ensure massive conversational context memory
-    history = get_recent_messages(session_id, limit=50)
+    session_id = request.session_id
+    
+    # If no session_id provided, create a new chat session
+    if not session_id:
+        title = request.question[:35] + ("..." if len(request.question) > 35 else "")
+        session_id = create_session(user_id, title)
+        if not session_id:
+            raise HTTPException(status_code=500, detail="Failed to create chat session.")
+    elif not session_belongs_to_user(session_id, user_id):
+        raise HTTPException(status_code=404, detail="Session not found.")
+    
+    save_message(session_id, user_id, "user", request.question)
+    history = get_recent_messages(session_id, user_id, limit=50)
+    
+    # Fetch user profile for personalized answers
+    profile_summary = get_profile_summary(user_id)
     
     try:
         # 2. Expand/Rewrite Query for better retrieval if it's a follow-up
@@ -33,8 +50,6 @@ async def chat(request: ChatRequest):
         
         # 4. RETRIEVAL (PDFs Only)
         db = get_db()
-        
-        # Search PDF chunks
         pdf_response = db.rpc(
             "match_document_chunks", 
             {
@@ -46,9 +61,9 @@ async def chat(request: ChatRequest):
         
         top_chunks = pdf_response.data if pdf_response.data else []
         
-        # 5. Generate Answer via LLM (passing original query and history)
-        answer = generate_answer(request.question, top_chunks, history)
-        save_message(session_id, "assistant", answer)
+        # 5. Generate Answer via LLM (passing original query, history, and profile)
+        answer = generate_answer(request.question, top_chunks, history, profile_summary)
+        save_message(session_id, user_id, "assistant", answer)
         
         # 6. Map citations
         sources = []
@@ -74,7 +89,7 @@ async def chat(request: ChatRequest):
     except Exception as e:
         print(f"Chat API Error: {e}")
         fallback_answer = "Sorry, I am currently unable to process your request."
-        save_message(session_id, "assistant", fallback_answer)
+        save_message(session_id, user_id, "assistant", fallback_answer)
         
         return ChatResponse(
             answer=fallback_answer,
@@ -84,15 +99,74 @@ async def chat(request: ChatRequest):
             confidence=0.0
         )
 
+
 @router.get("/api/sessions")
-async def get_sessions():
-    from app.services.memory import get_all_sessions
-    return get_all_sessions()
+async def get_sessions_endpoint(user_id: str = Depends(get_current_user_id)):
+    """Returns only the current authenticated user's sessions."""
+    return get_all_sessions(user_id)
+
 
 @router.get("/api/chat/{session_id}")
-async def get_chat_history(session_id: str):
-    from app.services.memory import get_session_history
-    messages = get_session_history(session_id)
+async def get_chat_history_endpoint(session_id: str, user_id: str = Depends(get_current_user_id)):
+    """Returns history only if the session belongs to the current user."""
+    messages = get_session_history(session_id, user_id)
     if not messages:
         raise HTTPException(status_code=404, detail="Session not found")
     return messages
+
+
+@router.get("/api/profile")
+async def get_profile_endpoint(user_id: str = Depends(get_current_user_id)):
+    """Fetch current user profile and onboarding status."""
+    try:
+        profile = fetch_profile(user_id)
+        if not profile:
+            return {"onboarding_completed": False}
+
+        return profile
+    except Exception:
+        return {"onboarding_completed": False}
+
+
+@router.post("/api/profile/onboarding")
+async def complete_onboarding(
+    payload: UserProfilePayload,
+    user_id: str = Depends(get_current_user_id),
+):
+    """Create or update the authenticated user's onboarding profile."""
+    try:
+        return upsert_profile(user_id, payload)
+    except Exception as e:
+        print(f"Profile onboarding error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to save profile.")
+
+
+@router.put("/api/profile")
+async def update_profile(
+    payload: UserProfilePayload,
+    user_id: str = Depends(get_current_user_id),
+):
+    """Update the authenticated user's profile."""
+    try:
+        return upsert_profile(user_id, payload)
+    except Exception as e:
+        print(f"Profile update error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to update profile.")
+
+
+@router.get("/api/auth/me")
+async def auth_me(user_id: str = Depends(get_current_user_id)):
+    """Lightweight bootstrap endpoint — confirms the user is authenticated and returns onboarding status."""
+    try:
+        profile = fetch_profile(user_id)
+        onboarding_done = profile.get("onboarding_completed", False) if profile else False
+        
+        return {
+            "user_id": user_id,
+            "onboarding_completed": onboarding_done
+        }
+    except Exception:
+        return {
+            "user_id": user_id,
+            "onboarding_completed": False
+        }

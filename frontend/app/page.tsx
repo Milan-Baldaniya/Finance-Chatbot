@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useRef, useEffect, FormEvent } from "react";
+import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { createClient } from "@/utils/supabase/client";
 
-// ── Types ──
 interface SourceCitation {
   document_title: string;
   page_number: number | null;
@@ -26,9 +27,16 @@ interface Session {
   created_at: string;
 }
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+interface ChatHistoryMessage {
+  id?: string;
+  role: "user" | "assistant";
+  content: string;
+  created_at: string;
+}
 
-// ── Suggested Questions ──
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+const supabase = createClient();
+
 const SUGGESTIONS = [
   "What compliances are required before buying term insurance?",
   "What is the role of IRDAI?",
@@ -36,55 +44,141 @@ const SUGGESTIONS = [
   "Can I buy insurance for my dependents?",
 ];
 
+const sessionDateFormatter = new Intl.DateTimeFormat("en-IN", {
+  day: "numeric",
+  month: "short",
+});
+
+const timeFormatter = new Intl.DateTimeFormat("en-IN", {
+  hour: "numeric",
+  minute: "2-digit",
+});
+
+function formatSessionDate(createdAt: string) {
+  try {
+    return sessionDateFormatter.format(new Date(createdAt));
+  } catch {
+    return "";
+  }
+}
+
+function formatMessageTime(date: Date) {
+  try {
+    return timeFormatter.format(date);
+  } catch {
+    return "";
+  }
+}
+
 export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [isConnected, setIsConnected] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [sessions, setSessions] = useState<Session[]>([]);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [userEmail, setUserEmail] = useState<string>("");
+  const [checkingAuth, setCheckingAuth] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const router = useRouter();
 
-  // Check backend health and load sessions on mount
-  useEffect(() => {
-    fetch(`${API_BASE}/health`)
-      .then((r) => r.json())
-      .then(() => setIsConnected(true))
-      .catch(() => setIsConnected(false));
-      
-    fetchSessions();
+  const getAuthToken = useCallback(async (): Promise<string | null> => {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    return session?.access_token || null;
   }, []);
 
-  const fetchSessions = () => {
-    try {
-      const stored = localStorage.getItem("my_finbot_sessions");
-      if (stored) {
-        setSessions(JSON.parse(stored));
-      } else {
-        setSessions([]);
-      }
-    } catch (error) {
-      console.error("Failed to load sessions from local storage", error);
+  const fetchSessions = useCallback(async () => {
+    const token = await getAuthToken();
+    if (!token) {
+      return;
     }
-  };
+
+    try {
+      const response = await fetch(`${API_BASE}/api/sessions`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!response.ok) {
+        return;
+      }
+
+      const data = await response.json();
+      setSessions(data);
+    } catch (error) {
+      console.error("Failed to load sessions", error);
+    }
+  }, [getAuthToken]);
+
+  useEffect(() => {
+    const init = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        router.push("/sign-in");
+        return;
+      }
+
+      setUserEmail(user.email || "User");
+
+      const token = await getAuthToken();
+      if (token) {
+        try {
+          const response = await fetch(`${API_BASE}/api/auth/me`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            if (!data.onboarding_completed) {
+              router.push("/onboarding");
+              return;
+            }
+          }
+        } catch (error) {
+          console.error("Error checking onboarding:", error);
+        }
+      }
+
+      setCheckingAuth(false);
+
+      fetchSessions();
+    };
+
+    init();
+  }, [fetchSessions, getAuthToken, router]);
 
   const loadSession = async (sid: string) => {
+    const token = await getAuthToken();
+    if (!token) {
+      return;
+    }
+
     try {
-      const res = await fetch(`${API_BASE}/api/chat/${sid}`);
-      if (res.ok) {
-        const data = await res.json();
-        const loadedMessages: Message[] = data.map((msg: any) => ({
-          id: msg.id || crypto.randomUUID(),
-          role: msg.role,
-          content: msg.content,
-          timestamp: new Date(msg.created_at),
-          sources: [] // We don't store sources in db currently to keep it simple, but we could in future
-        }));
-        setMessages(loadedMessages);
-        setSessionId(sid);
+      const response = await fetch(`${API_BASE}/api/chat/${sid}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!response.ok) {
+        return;
       }
+
+      const data = await response.json();
+      const loadedMessages: Message[] = data.map((msg: ChatHistoryMessage) => ({
+        id: msg.id || crypto.randomUUID(),
+        role: msg.role,
+        content: msg.content,
+        timestamp: new Date(msg.created_at),
+        sources: [],
+      }));
+
+      setMessages(loadedMessages);
+      setSessionId(sid);
+      setIsSidebarOpen(false);
     } catch (error) {
       console.error("Failed to load session history", error);
     }
@@ -93,25 +187,31 @@ export default function ChatPage() {
   const createNewChat = () => {
     setMessages([]);
     setSessionId(null);
-    fetchSessions(); // Refresh list just in case
+    setIsSidebarOpen(false);
+    fetchSessions();
   };
 
-  // Auto-scroll to bottom
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    router.push("/sign-in");
+  };
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, isLoading]);
 
-  // Auto-resize textarea
   useEffect(() => {
     if (inputRef.current) {
       inputRef.current.style.height = "auto";
-      inputRef.current.style.height = `${Math.min(inputRef.current.scrollHeight, 200)}px`;
+      inputRef.current.style.height = `${Math.min(inputRef.current.scrollHeight, 220)}px`;
     }
   }, [input]);
 
   const sendMessage = async (text?: string) => {
     const question = (text || input).trim();
-    if (!question || isLoading) return;
+    if (!question || isLoading) {
+      return;
+    }
 
     const userMsg: Message = {
       id: crypto.randomUUID(),
@@ -119,40 +219,37 @@ export default function ChatPage() {
       content: question,
       timestamp: new Date(),
     };
+
     setMessages((prev) => [...prev, userMsg]);
     setInput("");
     setIsLoading(true);
 
+    const token = await getAuthToken();
+    if (!token) {
+      setIsLoading(false);
+      router.push("/sign-in");
+      return;
+    }
+
     try {
-      const res = await fetch(`${API_BASE}/api/chat`, {
+      const response = await fetch(`${API_BASE}/api/chat`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({ question, session_id: sessionId }),
       });
-      const data = await res.json();
 
-      if (!sessionId) {
+      if (!response.ok) {
+        throw new Error("Chat request failed");
+      }
+
+      const data = await response.json();
+
+      if (!sessionId && data.session_id) {
         setSessionId(data.session_id);
-        
-        // Save the new session to localStorage
-        try {
-          const stored = localStorage.getItem("my_finbot_sessions");
-          const mySessions = stored ? JSON.parse(stored) : [];
-          
-          // Only add if it doesn't already exist
-          if (!mySessions.some((s: Session) => s.session_id === data.session_id)) {
-            const newSession: Session = {
-              session_id: data.session_id,
-              title: question.substring(0, 30) + (question.length > 30 ? "..." : ""),
-              created_at: data.created_at || new Date().toISOString()
-            };
-            const updatedSessions = [newSession, ...mySessions];
-            localStorage.setItem("my_finbot_sessions", JSON.stringify(updatedSessions));
-            setSessions(updatedSessions);
-          }
-        } catch (e) {
-          console.error("Error saving to localStorage", e);
-        }
+        setTimeout(fetchSessions, 500);
       }
 
       const botMsg: Message = {
@@ -162,229 +259,473 @@ export default function ChatPage() {
         sources: data.sources,
         timestamp: new Date(data.created_at),
       };
+
       setMessages((prev) => [...prev, botMsg]);
     } catch {
       const errMsg: Message = {
         id: crypto.randomUUID(),
         role: "assistant",
-        content: "Sorry, I couldn't reach the server. Please ensure the backend is running on port 8000.",
+        content:
+          "I could not reach the backend right now. Please check that the API server is running and try again.",
         timestamp: new Date(),
       };
+
       setMessages((prev) => [...prev, errMsg]);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleSubmit = (e: FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = (event: FormEvent) => {
+    event.preventDefault();
     sendMessage();
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
+  const handleKeyDown = (event: React.KeyboardEvent) => {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
       sendMessage();
     }
   };
 
-  return (
-    <div className="flex h-screen w-full bg-[#212121] text-[#ECECEC] font-sans overflow-hidden">
-      {/* ── Custom CSS for Markdown ── */}
-      <style dangerouslySetInnerHTML={{__html: `
-        .markdown-body p { margin-bottom: 1em; line-height: 1.6; }
-        .markdown-body ul { list-style-type: disc; margin-left: 1.5em; margin-bottom: 1em; }
-        .markdown-body ol { list-style-type: decimal; margin-left: 1.5em; margin-bottom: 1em; }
-        .markdown-body li { margin-bottom: 0.5em; line-height: 1.6; }
-        .markdown-body strong { font-weight: 600; color: #FFFFFF; }
-        .markdown-body code { background: #2f2f2f; padding: 0.2em 0.4em; border-radius: 4px; font-size: 0.9em; font-family: monospace; }
-        .markdown-body pre { background: #1a1a1a; padding: 1em; border-radius: 8px; overflow-x: auto; margin-bottom: 1em; border: 1px solid #333; }
-        .markdown-body pre code { background: transparent; padding: 0; }
-        .markdown-body h1, .markdown-body h2, .markdown-body h3 { font-weight: 600; margin-top: 1.5em; margin-bottom: 0.5em; color: #FFFFFF; }
-        .markdown-body a { color: #58a6ff; text-decoration: none; }
-        .markdown-body a:hover { text-decoration: underline; }
-      `}} />
-
-      {/* ── Sidebar ── */}
-      <div 
-        className={`${isSidebarOpen ? "w-[260px]" : "w-0"} flex-shrink-0 transition-all duration-300 bg-[#171717] flex flex-col border-r border-[#333] hidden md:flex`}
-        style={{ overflow: "hidden" }}
-      >
-        <div className="p-3">
-          <button 
-            onClick={createNewChat}
-            className="flex items-center gap-2 w-full hover:bg-[#2f2f2f] transition-colors p-2.5 rounded-md text-sm font-medium text-gray-200"
-          >
-            <div className="w-6 h-6 rounded-full bg-white text-black flex items-center justify-center font-bold text-lg leading-none pb-[2px]">
-              +
+  const sidebarContent = (
+    <div className="surface-card flex h-full flex-col overflow-hidden p-4 md:p-5">
+      <div className="surface-card-soft mb-4 rounded-[26px] p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="glow-ring flex h-12 w-12 items-center justify-center rounded-[18px] bg-[var(--accent-primary)] text-lg font-bold text-white">
+              F
             </div>
-            New chat
+            <div>
+              <p className="section-kicker">Finance assistant</p>
+              <h1 className="mt-1 text-xl font-semibold text-[var(--text-primary)]">
+                FinBot
+              </h1>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsSidebarOpen(false)}
+            className="secondary-button h-10 w-10 p-0 md:hidden"
+            aria-label="Close sidebar"
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
           </button>
         </div>
-        <div className="flex-1 overflow-y-auto p-3">
-          <div className="text-xs text-gray-500 font-semibold mb-3 px-2 mt-2">Previous Chats</div>
-          
-          {sessions.length === 0 ? (
-             <div className="text-xs text-gray-600 px-2 italic">No previous chats</div>
-          ) : (
-            <div className="space-y-1">
-              {sessions.map(session => (
-                <div 
-                  key={session.session_id}
-                  onClick={() => loadSession(session.session_id)}
-                  className={`text-sm text-gray-300 truncate cursor-pointer p-2 rounded-md transition ${sessionId === session.session_id ? 'bg-[#2f2f2f] font-medium' : 'hover:bg-[#2f2f2f]'}`}
-                  title={session.title}
-                >
-                  {session.title}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-        
-        {/* Connection Status */}
-        <div className="p-4 border-t border-[#333] text-sm flex items-center justify-between">
-           <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-semibold">
-                U
-              </div>
-              <span className="font-medium text-gray-200">Admin</span>
-           </div>
-           <div title={isConnected ? "API Connected" : "API Offline"} className={`w-2.5 h-2.5 rounded-full shadow-[0_0_8px_rgba(0,0,0,0.5)] ${isConnected ? "bg-green-500 shadow-green-500/50" : "bg-red-500 shadow-red-500/50"}`}></div>
+        <p className="mt-3 text-sm leading-6 text-[var(--text-secondary)]">
+          Ask about insurance rules, product basics, and finance documents with
+          grounded answers and saved context.
+        </p>
+      </div>
+
+      <button
+        type="button"
+        onClick={createNewChat}
+        className="primary-button mb-4 w-full px-4 py-3 text-sm"
+      >
+        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/18">
+          +
+        </span>
+        Start a new chat
+      </button>
+
+      <div className="mb-3 flex items-center justify-between px-1">
+        <div>
+          <p className="text-sm font-semibold text-[var(--text-primary)]">
+            Conversation history
+          </p>
+          <p className="text-xs text-[var(--text-secondary)]">
+            {sessions.length} saved session{sessions.length === 1 ? "" : "s"}
+          </p>
         </div>
       </div>
 
-      {/* ── Main Chat Area ── */}
-      <div className="flex-1 flex flex-col h-full relative">
-        {/* Mobile Header */}
-        <div className="h-12 flex items-center px-4 border-b border-[#333] md:hidden text-gray-300 bg-[#212121]">
-           <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 -ml-2 hover:bg-[#2f2f2f] rounded-md transition">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
-           </button>
-           <span className="ml-2 font-medium text-white">FinBot</span>
+      <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+        {sessions.length === 0 ? (
+          <div className="surface-card-soft rounded-[22px] p-4 text-sm leading-6 text-[var(--text-secondary)]">
+            Your saved chats will appear here once you start asking questions.
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {sessions.map((session) => {
+              const isActive = sessionId === session.session_id;
+
+              return (
+                <button
+                  key={session.session_id}
+                  type="button"
+                  onClick={() => loadSession(session.session_id)}
+                  className={`w-full rounded-[20px] border px-4 py-3 text-left transition-all ${
+                    isActive
+                      ? "border-[var(--accent-primary)] bg-[var(--accent-tertiary)] shadow-sm"
+                      : "border-[var(--border-subtle)] bg-white/72 hover:border-[var(--border-focus)] hover:bg-white"
+                  }`}
+                  title={session.title}
+                >
+                  <p className="truncate text-sm font-semibold text-[var(--text-primary)]">
+                    {session.title}
+                  </p>
+                  <div className="mt-1 flex items-center justify-between gap-3 text-xs text-[var(--text-secondary)]">
+                    <span className="truncate">
+                      {isActive ? "Currently open" : "Saved conversation"}
+                    </span>
+                    <span>{formatSessionDate(session.created_at)}</span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      <div className="mt-4 space-y-3">
+        <div className="surface-card-soft rounded-[24px] p-4">
+          <div className="flex items-start gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--accent-primary)] text-sm font-semibold text-white">
+              {userEmail.charAt(0).toUpperCase()}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-semibold text-[var(--text-primary)]">
+                {userEmail}
+              </p>
+              <p className="mt-2 text-xs text-[var(--text-secondary)]">
+                Your saved chats and profile stay linked to this account.
+              </p>
+            </div>
+          </div>
         </div>
 
-        <main className="flex-1 overflow-y-auto scroll-smooth w-full">
-          {messages.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center px-4 pb-32">
-              <div className="w-16 h-16 bg-white text-black rounded-full flex items-center justify-center text-2xl font-bold mb-6 shadow-lg shadow-white/10">
-                F
-              </div>
-              <h2 className="text-2xl font-semibold mb-10 text-white tracking-tight">How can I help you today?</h2>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full max-w-2xl">
-                {SUGGESTIONS.map((s, i) => (
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              setIsSidebarOpen(false);
+              router.push("/profile");
+            }}
+            className="secondary-button px-4 py-3 text-sm"
+          >
+            Profile
+          </button>
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="secondary-button px-4 py-3 text-sm"
+          >
+            Log out
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
+  if (checkingAuth) {
+    return (
+      <div className="flex min-h-screen items-center justify-center px-6">
+        <div className="surface-card flex w-full max-w-sm flex-col items-center gap-4 rounded-[30px] p-10 text-center">
+          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[var(--accent-primary)] text-xl font-bold text-white">
+            F
+          </div>
+          <div className="h-10 w-10 rounded-full border-2 border-[var(--accent-primary)] border-t-transparent animate-spin" />
+          <div>
+            <p className="text-base font-semibold text-[var(--text-primary)]">
+              Preparing your workspace
+            </p>
+            <p className="mt-1 text-sm text-[var(--text-secondary)]">
+              Checking your account and loading saved conversations.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative h-screen overflow-hidden px-4 py-4 md:px-5 md:py-5">
+      <div className="page-orb left-[-4rem] top-10 h-40 w-40 bg-[rgba(210,136,66,0.16)]" />
+      <div
+        className="page-orb right-[-2rem] top-24 h-56 w-56 bg-[rgba(0,123,229,0.12)]"
+        style={{ animationDelay: "1.5s" }}
+      />
+      <div
+        className="page-orb bottom-8 left-1/3 h-32 w-32 bg-[rgba(255,255,255,0.75)]"
+        style={{ animationDelay: "3s" }}
+      />
+
+      <div
+        className={`fixed inset-0 z-30 bg-[#1f2a30]/18 backdrop-blur-sm transition-opacity md:hidden ${
+          isSidebarOpen ? "opacity-100" : "pointer-events-none opacity-0"
+        }`}
+        onClick={() => setIsSidebarOpen(false)}
+      />
+
+      <div className="relative flex h-full min-h-0 gap-5 overflow-hidden">
+        <aside
+          className={`fixed inset-y-4 left-4 z-40 w-[86vw] max-w-[320px] transition-transform duration-300 md:hidden ${
+            isSidebarOpen ? "translate-x-0" : "-translate-x-[120%]"
+          }`}
+        >
+          {sidebarContent}
+        </aside>
+
+        <aside className="hidden h-full w-[320px] flex-shrink-0 md:block">
+          <div className="h-full">{sidebarContent}</div>
+        </aside>
+
+        <div className="min-w-0 min-h-0 flex-1">
+          <div className="surface-card flex h-full min-h-0 flex-col overflow-hidden">
+            <header className="shrink-0 border-b border-[var(--border-subtle)] px-4 py-4 md:px-6">
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
                   <button
-                    key={i}
-                    onClick={() => sendMessage(s)}
-                    className="p-4 border border-[#444] rounded-xl text-left hover:bg-[#2f2f2f] hover:border-gray-500 transition-all text-[14px] text-gray-300 leading-relaxed shadow-sm"
+                    type="button"
+                    onClick={() => setIsSidebarOpen(true)}
+                    className="secondary-button h-11 w-11 p-0 md:hidden"
+                    aria-label="Open sidebar"
                   >
-                    {s}
+                    <svg
+                      width="20"
+                      height="20"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <line x1="3" y1="12" x2="21" y2="12" />
+                      <line x1="3" y1="6" x2="21" y2="6" />
+                      <line x1="3" y1="18" x2="21" y2="18" />
+                    </svg>
                   </button>
-                ))}
+                  <div>
+                    <p className="section-kicker">Grounded finance answers</p>
+                    <h2 className="mt-1 text-2xl font-semibold text-[var(--text-primary)]">
+                      Chat with FinBot
+                    </h2>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => router.push("/profile")}
+                    className="secondary-button px-4 py-2.5 text-sm"
+                  >
+                    Edit profile
+                  </button>
+                </div>
               </div>
-            </div>
-          ) : (
-            <div className="flex flex-col items-center py-6 pb-40 w-full">
-              {messages.map((msg, idx) => (
-                <div key={msg.id} className="w-full flex justify-center py-4 px-4 sm:px-6">
-                  <div className={`w-full max-w-3xl flex gap-4 ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-                    
-                    {/* Assistant Avatar */}
-                    {msg.role === "assistant" && (
-                      <div className="w-8 h-8 mt-1 rounded-full bg-white flex-shrink-0 flex items-center justify-center text-black font-bold text-sm shadow-sm border border-gray-200">
-                        F
-                      </div>
-                    )}
+            </header>
 
-                    {/* Content */}
-                    <div className={`flex flex-col gap-1.5 ${msg.role === "user" ? "items-end max-w-[80%]" : "w-full max-w-[90%]"}`}>
-                      {msg.role === "user" ? (
-                        <div className="bg-[#2f2f2f] px-5 py-3 rounded-2xl rounded-tr-sm text-gray-100 text-[15.5px] leading-relaxed shadow-sm">
-                          {msg.content}
-                        </div>
-                      ) : (
-                        <div className="text-gray-100 text-[15.5px] w-full pt-1">
-                          <div className="markdown-body text-gray-200">
-                            <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                              {msg.content}
-                            </ReactMarkdown>
+            <main
+              className={`min-h-0 flex-1 px-4 pb-4 pt-5 md:px-6 ${
+                messages.length === 0 ? "overflow-hidden" : "overflow-y-auto"
+              }`}
+            >
+              {messages.length === 0 ? (
+                <div className="mx-auto flex h-full w-full max-w-3xl flex-col items-center justify-center py-4 text-center">
+                  <div className="glow-ring flex h-[72px] w-[72px] items-center justify-center rounded-[26px] bg-[var(--accent-primary)] text-2xl font-bold text-white">
+                    F
+                  </div>
+                  <h3 className="mt-6 text-3xl font-semibold text-[var(--text-primary)] md:text-4xl">
+                    Start a new conversation
+                  </h3>
+                  <p className="mt-3 max-w-2xl text-sm leading-7 text-[var(--text-secondary)] md:text-base">
+                    Ask about insurance plans, regulations, waiting periods, or
+                    policy eligibility.
+                  </p>
+
+                  <div className="mt-8 w-full">
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                      {SUGGESTIONS.map((suggestion, index) => (
+                        <button
+                          key={index}
+                          type="button"
+                          onClick={() => sendMessage(suggestion)}
+                          className="surface-card-strong rounded-[24px] p-5 text-left transition-transform hover:-translate-y-0.5"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <p className="text-[15px] leading-7 text-[var(--text-primary)]">
+                              {suggestion}
+                            </p>
+                            <span className="mt-1 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--accent-primary)]">
+                              Start
+                            </span>
                           </div>
-                        </div>
-                      )}
-
-                      {/* Sources (Citations) */}
-                      {msg.role === "assistant" && msg.sources && msg.sources.length > 0 && (
-                        <div className="mt-4 flex flex-wrap gap-2">
-                          {msg.sources.map((src, si) => (
-                            <div
-                              key={si}
-                              className="px-3 py-1.5 rounded-full bg-[#1a1a1a] border border-[#333] hover:border-[#555] text-xs text-gray-400 flex items-center gap-1.5 cursor-pointer transition-colors"
-                            >
-                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8l-6 6v12a2 2 0 0 0 2 2z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-                              <span className="truncate max-w-[180px] font-medium text-gray-300">{src.document_title}</span>
-                              {src.page_number !== null && <span className="text-gray-500 ml-1">pg {src.page_number}</span>}
-                            </div>
-                          ))}
-                        </div>
-                      )}
+                        </button>
+                      ))}
                     </div>
                   </div>
                 </div>
-              ))}
-              
-              {isLoading && (
-                 <div className="w-full flex justify-center py-4 px-4 sm:px-6">
-                  <div className="w-full max-w-3xl flex gap-4 justify-start">
-                    <div className="w-8 h-8 mt-1 rounded-full bg-white flex-shrink-0 flex items-center justify-center text-black font-bold text-sm shadow-sm border border-gray-200">
-                      F
-                    </div>
-                    <div className="flex gap-1.5 items-center mt-3 ml-2">
-                      <div className="w-2 h-2 rounded-full bg-gray-500 animate-pulse" />
-                      <div className="w-2 h-2 rounded-full bg-gray-500 animate-pulse" style={{ animationDelay: '150ms' }} />
-                      <div className="w-2 h-2 rounded-full bg-gray-500 animate-pulse" style={{ animationDelay: '300ms' }} />
-                    </div>
-                  </div>
-                 </div>
-              )}
-              
-              <div ref={messagesEndRef} className="h-10" />
-            </div>
-          )}
-        </main>
+              ) : (
+                <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 pb-6">
+                  {messages.map((msg) => (
+                    <div
+                      key={msg.id}
+                      className={`flex ${
+                        msg.role === "user" ? "justify-end" : "justify-start"
+                      }`}
+                    >
+                      <div
+                        className={`max-w-[92%] md:max-w-[84%] ${
+                          msg.role === "assistant" ? "w-full" : ""
+                        }`}
+                      >
+                        {msg.role === "assistant" && (
+                          <div className="mb-2 flex items-center gap-3 px-1">
+                            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--accent-primary)] text-sm font-semibold text-white">
+                              F
+                            </div>
+                            <div>
+                              <p className="text-sm font-semibold text-[var(--text-primary)]">
+                                FinBot
+                              </p>
+                              <p className="text-xs text-[var(--text-secondary)]">
+                                {formatMessageTime(msg.timestamp)}
+                              </p>
+                            </div>
+                          </div>
+                        )}
 
-        {/* ── Input Area ── */}
-        <div className="absolute bottom-0 left-0 w-full bg-gradient-to-t from-[#212121] via-[#212121] to-transparent pt-10 pb-6 px-4">
-          <div className="max-w-3xl mx-auto relative">
-            <form onSubmit={handleSubmit} className="relative flex items-end">
-              <div className="w-full bg-[#2f2f2f] rounded-3xl shadow-lg border border-[#444] flex items-end pl-5 pr-2 py-2 focus-within:ring-1 focus-within:ring-[#555] transition-all">
-                <textarea
-                  ref={inputRef}
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder="Message FinBot..."
-                  rows={1}
-                  className="w-full bg-transparent text-[#ECECEC] placeholder-gray-400 border-none outline-none resize-none py-2.5 max-h-[200px] overflow-y-auto text-[15.5px] leading-relaxed"
-                />
-                <button
-                  type="submit"
-                  disabled={!input.trim() || isLoading}
-                  className={`mb-1 ml-2 p-2.5 rounded-full flex-shrink-0 transition-all ${
-                    input.trim() && !isLoading 
-                      ? "bg-white text-black hover:bg-gray-200 cursor-pointer shadow-md" 
-                      : "bg-[#444] text-gray-500 cursor-not-allowed"
-                  }`}
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <line x1="12" y1="19" x2="12" y2="5"></line>
-                    <polyline points="5 12 12 5 19 12"></polyline>
-                  </svg>
-                </button>
+                        <div
+                          className={`rounded-[28px] border px-5 py-4 shadow-sm md:px-6 ${
+                            msg.role === "user"
+                              ? "border-transparent bg-[var(--accent-primary)] text-white"
+                              : "border-[var(--border-subtle)] bg-white/92"
+                          }`}
+                        >
+                          {msg.role === "user" ? (
+                            <div>
+                              <p className="text-[15px] leading-7 md:text-[15.5px]">
+                                {msg.content}
+                              </p>
+                              <p className="mt-3 text-right text-xs text-white/72">
+                                {formatMessageTime(msg.timestamp)}
+                              </p>
+                            </div>
+                          ) : (
+                            <div className="markdown-body text-[15px] leading-7 md:text-[15.5px]">
+                              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                {msg.content}
+                              </ReactMarkdown>
+                            </div>
+                          )}
+                        </div>
+
+                        {msg.role === "assistant" &&
+                          msg.sources &&
+                          msg.sources.length > 0 && (
+                            <div className="mt-4 flex flex-wrap gap-2 px-1">
+                              {msg.sources.map((src, sourceIndex) => (
+                                <div
+                                  key={`${src.document_title}-${sourceIndex}`}
+                                  className="inline-flex max-w-full items-center gap-2 rounded-full border border-[var(--border-subtle)] bg-[var(--bg-secondary)] px-3 py-2 text-xs text-[var(--text-secondary)]"
+                                  title={src.chunk_preview}
+                                >
+                                  <span className="truncate font-semibold text-[var(--text-primary)]">
+                                    {src.document_title}
+                                  </span>
+                                  {src.page_number !== null && (
+                                    <span className="text-[var(--accent-primary)]">
+                                      page {src.page_number}
+                                    </span>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                      </div>
+                    </div>
+                  ))}
+
+                  {isLoading && (
+                    <div className="flex justify-start">
+                      <div className="w-full max-w-[92%] md:max-w-[84%]">
+                        <div className="mb-2 flex items-center gap-3 px-1">
+                          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--accent-primary)] text-sm font-semibold text-white">
+                            F
+                          </div>
+                          <div>
+                            <p className="text-sm font-semibold text-[var(--text-primary)]">
+                              FinBot
+                            </p>
+                            <p className="text-xs text-[var(--text-secondary)]">
+                              Thinking through your question
+                            </p>
+                          </div>
+                        </div>
+                        <div className="inline-flex items-center gap-2 rounded-[26px] border border-[var(--border-subtle)] bg-white/92 px-5 py-4">
+                          <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-[var(--accent-primary)]" />
+                          <span
+                            className="h-2.5 w-2.5 animate-pulse rounded-full bg-[var(--accent-primary)]"
+                            style={{ animationDelay: "120ms" }}
+                          />
+                          <span
+                            className="h-2.5 w-2.5 animate-pulse rounded-full bg-[var(--accent-primary)]"
+                            style={{ animationDelay: "240ms" }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <div ref={messagesEndRef} className="h-2" />
+                </div>
+              )}
+            </main>
+
+            <div className="shrink-0 border-t border-[var(--border-subtle)] bg-white/60 px-4 py-4 md:px-6 md:py-5">
+              <div className="mx-auto max-w-4xl">
+                <form onSubmit={handleSubmit}>
+                  <div className="surface-card-soft flex items-end gap-3 rounded-[28px] p-3">
+                    <textarea
+                      ref={inputRef}
+                      value={input}
+                      onChange={(event) => setInput(event.target.value)}
+                      onKeyDown={handleKeyDown}
+                      placeholder="Ask about policy eligibility, regulations, waiting periods, or plan types..."
+                      rows={1}
+                      className="min-h-[56px] w-full resize-none bg-transparent px-2 py-3 text-[15px] leading-7 text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)]"
+                    />
+                    <button
+                      type="submit"
+                      disabled={!input.trim() || isLoading}
+                      className="primary-button h-12 w-12 rounded-full p-0"
+                      aria-label="Send message"
+                    >
+                      <svg
+                        width="18"
+                        height="18"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2.4"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M22 2 11 13" />
+                        <path d="M22 2 15 22 11 13 2 9l20-7Z" />
+                      </svg>
+                    </button>
+                  </div>
+                </form>
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-2 px-1 text-xs text-[var(--text-secondary)]">
+                  <p>Press Enter to send. Use Shift + Enter for a new line.</p>
+                  <p>Verify important compliance or underwriting details before acting.</p>
+                </div>
               </div>
-            </form>
-            <div className="text-center text-xs text-gray-500 mt-3 font-medium">
-              FinBot can make mistakes. Consider verifying important compliance information.
             </div>
           </div>
         </div>

@@ -162,9 +162,9 @@ def expand_query(query: str, history: List[Dict]) -> str:
 
 
 
-def generate_answer(query: str, context_chunks: List[Dict], history: Optional[List[Dict]] = None) -> str:
+def generate_answer(query: str, context_chunks: List[Dict], history: Optional[List[Dict]] = None, profile_summary: str = "") -> str:
     """
-    Generate an answer using intent classification, ranked/trimmed context, history, strict prompt constraints, and guardrails.
+    Generate an answer using intent classification, ranked/trimmed context, history, user profile, and strict prompt constraints.
     """
     client = get_chat_client()
 
@@ -192,6 +192,15 @@ def generate_answer(query: str, context_chunks: List[Dict], history: Optional[Li
         "If they ask about specific rules or regulations, use the context provided but explain it in a clear, highly intelligent way. Use paragraphs and bullet points where helpful to organize information beautifully.\n"
         "DO NOT be a robot. DO NOT force bullet points on every single sentence. Be naturally conversational while remaining strictly accurate to the context.\n"
     )
+
+    # Inject user profile for personalized answers
+    if profile_summary:
+        system_prompt += (
+            f"\n--- USER PROFILE ---\n{profile_summary}\n"
+            "Use this profile as guidance to personalize your answers (e.g., age-appropriate plans, income-suitable products, smoker vs non-smoker premiums). "
+            "But NEVER make final underwriting claims based on profile alone. If the profile is relevant to the question, mention how it applies. "
+            "If the profile is irrelevant to the question, ignore it.\n"
+        )
 
     if intent == "pre_purchase":
         system_prompt += (
