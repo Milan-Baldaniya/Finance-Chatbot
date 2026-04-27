@@ -2,16 +2,36 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 
 export async function proxy(request: NextRequest) {
+  const pathname = request.nextUrl.pathname
+  const isAuthPage = pathname.startsWith('/sign-in') || pathname.startsWith('/sign-up')
+  const isCallbackRoute = pathname.startsWith('/auth/callback')
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
   let response = NextResponse.next({
     request: {
       headers: request.headers,
     },
   })
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
+  if (!supabaseUrl || !supabaseAnonKey) {
+    console.error('Missing Supabase environment variables in runtime')
+
+    if (isAuthPage || isCallbackRoute) {
+      return response
+    }
+
+    const redirectUrl = request.nextUrl.clone()
+    redirectUrl.pathname = '/sign-in'
+    redirectUrl.searchParams.set(
+      'error',
+      'Project configuration is incomplete. Please add Supabase environment variables in Vercel.',
+    )
+    return NextResponse.redirect(redirectUrl)
+  }
+
+  try {
+    const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
       cookies: {
         getAll() {
           return request.cookies.getAll()
@@ -24,25 +44,36 @@ export async function proxy(request: NextRequest) {
           )
         },
       },
+    })
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
+    if (!user && !isAuthPage && !isCallbackRoute) {
+      const redirectUrl = request.nextUrl.clone()
+      redirectUrl.pathname = '/sign-in'
+      return NextResponse.redirect(redirectUrl)
     }
-  )
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+    if (user && isAuthPage) {
+      const redirectUrl = request.nextUrl.clone()
+      redirectUrl.pathname = '/'
+      return NextResponse.redirect(redirectUrl)
+    }
+  } catch (error) {
+    console.error('Proxy auth check failed', error)
 
-  const pathname = request.nextUrl.pathname
-  const isAuthPage = pathname.startsWith('/sign-in') || pathname.startsWith('/sign-up')
+    if (isAuthPage || isCallbackRoute) {
+      return response
+    }
 
-  if (!user && !isAuthPage && !pathname.startsWith('/auth/callback')) {
     const redirectUrl = request.nextUrl.clone()
     redirectUrl.pathname = '/sign-in'
-    return NextResponse.redirect(redirectUrl)
-  }
-
-  if (user && isAuthPage) {
-    const redirectUrl = request.nextUrl.clone()
-    redirectUrl.pathname = '/'
+    redirectUrl.searchParams.set(
+      'error',
+      'Authentication service is unavailable right now. Please verify your Vercel environment settings.',
+    )
     return NextResponse.redirect(redirectUrl)
   }
 
