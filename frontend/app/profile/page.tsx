@@ -1,11 +1,10 @@
 'use client'
 
-import { FormEvent, useEffect, useState } from 'react'
+import { FormEvent, useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/utils/supabase/client'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'
-const supabase = createClient()
 
 const conditionOptions = [
   'Cancer',
@@ -51,14 +50,23 @@ export default function ProfilePage() {
   const [message, setMessage] = useState('')
   const [hasPreexisting, setHasPreexisting] = useState(false)
   const [primaryGoal, setPrimaryGoal] = useState('Low Premium + High Cover')
+  const supabaseRef = useRef<ReturnType<typeof createClient> | null>(null)
   const router = useRouter()
   const isMotorGoal = primaryGoal === 'Motor Insurance'
+
+  const getSupabase = useCallback(() => {
+    if (!supabaseRef.current) {
+      supabaseRef.current = createClient()
+    }
+
+    return supabaseRef.current
+  }, [])
 
   useEffect(() => {
     const loadProfile = async () => {
       const {
         data: { session },
-      } = await supabase.auth.getSession()
+      } = await getSupabase().auth.getSession()
 
       if (!session) {
         router.push('/sign-in')
@@ -84,7 +92,7 @@ export default function ProfilePage() {
     }
 
     loadProfile()
-  }, [router])
+  }, [getSupabase, router])
 
   const handleSave = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -94,7 +102,7 @@ export default function ProfilePage() {
 
     const {
       data: { session },
-    } = await supabase.auth.getSession()
+    } = await getSupabase().auth.getSession()
 
     if (!session) {
       router.push('/sign-in')

@@ -35,7 +35,6 @@ interface ChatHistoryMessage {
 }
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
-const supabase = createClient();
 
 const SUGGESTIONS = [
   "What compliances are required before buying term insurance?",
@@ -81,14 +80,23 @@ export default function ChatPage() {
   const [checkingAuth, setCheckingAuth] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const supabaseRef = useRef<ReturnType<typeof createClient> | null>(null);
   const router = useRouter();
+
+  const getSupabase = useCallback(() => {
+    if (!supabaseRef.current) {
+      supabaseRef.current = createClient();
+    }
+
+    return supabaseRef.current;
+  }, []);
 
   const getAuthToken = useCallback(async (): Promise<string | null> => {
     const {
       data: { session },
-    } = await supabase.auth.getSession();
+    } = await getSupabase().auth.getSession();
     return session?.access_token || null;
-  }, []);
+  }, [getSupabase]);
 
   const fetchSessions = useCallback(async () => {
     const token = await getAuthToken();
@@ -116,7 +124,7 @@ export default function ChatPage() {
     const init = async () => {
       const {
         data: { user },
-      } = await supabase.auth.getUser();
+      } = await getSupabase().auth.getUser();
 
       if (!user) {
         router.push("/sign-in");
@@ -150,7 +158,7 @@ export default function ChatPage() {
     };
 
     init();
-  }, [fetchSessions, getAuthToken, router]);
+  }, [fetchSessions, getAuthToken, getSupabase, router]);
 
   const loadSession = async (sid: string) => {
     const token = await getAuthToken();
@@ -192,7 +200,7 @@ export default function ChatPage() {
   };
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    await getSupabase().auth.signOut();
     router.push("/sign-in");
   };
 
