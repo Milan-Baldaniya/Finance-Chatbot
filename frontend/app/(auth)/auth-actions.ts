@@ -60,7 +60,7 @@ export async function signup(formData: FormData) {
     redirect('/sign-up?error=Email and password are required')
   }
 
-  const origin = (await headers()).get('origin') ?? 'http://localhost:3000'
+  const origin = (await headers()).get('origin') ?? 'https://finance-chatbot-ebon.vercel.app/'
 
   const { data, error } = await supabase.auth.signUp({
     email,
