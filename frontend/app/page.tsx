@@ -122,6 +122,15 @@ export default function ChatPage() {
   const sendLockRef = useRef(false);
   const router = useRouter();
 
+  const closeSidebar = useCallback(() => {
+    if (typeof window !== "undefined" && window.innerWidth >= 768) {
+      setIsDesktopSidebarOpen(false);
+      return;
+    }
+
+    setIsSidebarOpen(false);
+  }, []);
+
   const getSupabase = useCallback(() => {
     if (!supabaseRef.current) {
       supabaseRef.current = createClient();
@@ -436,8 +445,8 @@ export default function ChatPage() {
           </div>
           <button
             type="button"
-            onClick={() => setIsSidebarOpen(false)}
-            className="secondary-button h-10 w-10 p-0 md:hidden"
+            onClick={closeSidebar}
+            className="secondary-button h-10 w-10 p-0"
             aria-label="Close sidebar"
           >
             <svg
@@ -633,7 +642,7 @@ export default function ChatPage() {
         className={`fixed inset-0 z-30 bg-[#1f2a30]/18 backdrop-blur-sm transition-opacity md:hidden ${
           isSidebarOpen ? "opacity-100" : "pointer-events-none opacity-0"
         }`}
-        onClick={() => setIsSidebarOpen(false)}
+        onClick={closeSidebar}
       />
 
       <div className="relative flex h-full min-h-0 gap-5 overflow-hidden">
