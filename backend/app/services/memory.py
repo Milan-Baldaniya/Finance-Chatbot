@@ -2,11 +2,42 @@
 Chat Memory Service.
 Handles persisting and retrieving conversation history from Supabase.
 """
-from typing import List, Dict
+from datetime import datetime
+from typing import List, Dict, Optional
 import logging
 from app.core.db import get_db
 
 logger = logging.getLogger(__name__)
+
+
+def _parse_iso_datetime(value: str) -> datetime:
+    return datetime.fromisoformat(value.replace("Z", "+00:00"))
+
+
+def _dedupe_sessions(sessions: List[Dict]) -> List[Dict]:
+    deduped: List[Dict] = []
+
+    for session in sorted(sessions, key=lambda item: item["created_at"], reverse=True):
+        duplicate = next(
+            (
+                existing
+                for existing in deduped
+                if existing["title"].strip() == session["title"].strip()
+                and abs(
+                    (
+                        _parse_iso_datetime(existing["created_at"])
+                        - _parse_iso_datetime(session["created_at"])
+                    ).total_seconds()
+                )
+                < 60
+            ),
+            None,
+        )
+
+        if not duplicate:
+            deduped.append(session)
+
+    return deduped
 
 def create_session(user_id: str, title: str) -> str:
     db = get_db()
@@ -34,17 +65,19 @@ def session_belongs_to_user(session_id: str, user_id: str) -> bool:
         logger.error(f"Error checking session ownership: {e}")
         return False
 
-def save_message(session_id: str, user_id: str, role: str, content: str):
+def save_message(session_id: str, user_id: str, role: str, content: str) -> Optional[Dict]:
     db = get_db()
     try:
-        db.table("chat_messages").insert({
+        response = db.table("chat_messages").insert({
             "session_id": session_id,
             "user_id": user_id,
             "role": role,
             "content": content
         }).execute()
+        return response.data[0] if response.data else None
     except Exception as e:
         logger.error(f"Error saving message to memory: {e}")
+        return None
 
 def get_recent_messages(session_id: str, user_id: str, limit: int = 50) -> List[Dict]:
     db = get_db()
@@ -85,7 +118,7 @@ def get_all_sessions(user_id: str) -> List[Dict]:
             })
             
         sessions_list.sort(key=lambda x: x["created_at"], reverse=True)
-        return sessions_list
+        return _dedupe_sessions(sessions_list)
     except Exception as e:
         logger.error(f"Error fetching sessions: {e}")
         return []
@@ -103,3 +136,17 @@ def get_session_history(session_id: str, user_id: str) -> List[Dict]:
     except Exception as e:
         logger.error(f"Error fetching session history: {e}")
         return []
+
+
+def delete_session(session_id: str, user_id: str) -> bool:
+    db = get_db()
+    try:
+        response = db.table("chat_sessions")\
+            .delete()\
+            .eq("id", session_id)\
+            .eq("user_id", user_id)\
+            .execute()
+        return bool(response.data)
+    except Exception as e:
+        logger.error(f"Error deleting session: {e}")
+        return False

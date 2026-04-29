@@ -6,7 +6,7 @@ from app.core.auth import get_current_user_id
 from app.schemas.profile import UserProfilePayload
 from app.services.llm import generate_answer, expand_query
 from app.services.embeddings import generate_embeddings
-from app.services.memory import create_session, get_all_sessions, get_recent_messages, get_session_history, save_message, session_belongs_to_user
+from app.services.memory import create_session, delete_session, get_all_sessions, get_recent_messages, get_session_history, save_message, session_belongs_to_user
 from app.services.profile import get_profile as fetch_profile
 from app.services.profile import get_profile_summary, upsert_profile
 
@@ -63,7 +63,7 @@ async def chat(request: ChatRequest, user_id: str = Depends(get_current_user_id)
         
         # 5. Generate Answer via LLM (passing original query, history, and profile)
         answer = generate_answer(request.question, top_chunks, history, profile_summary)
-        save_message(session_id, user_id, "assistant", answer)
+        assistant_message = save_message(session_id, user_id, "assistant", answer)
         
         # 6. Map citations
         sources = []
@@ -82,20 +82,20 @@ async def chat(request: ChatRequest, user_id: str = Depends(get_current_user_id)
             answer=answer,
             sources=sources,
             session_id=session_id,
-            created_at=datetime.utcnow(),
+            created_at=assistant_message["created_at"] if assistant_message else datetime.utcnow(),
             confidence=max((s.relevance_score for s in sources), default=0.0)
         )
         
     except Exception as e:
         print(f"Chat API Error: {e}")
         fallback_answer = "Sorry, I am currently unable to process your request."
-        save_message(session_id, user_id, "assistant", fallback_answer)
-        
+        fallback_message = save_message(session_id, user_id, "assistant", fallback_answer)
+
         return ChatResponse(
             answer=fallback_answer,
             sources=[],
             session_id=session_id,
-            created_at=datetime.utcnow(),
+            created_at=fallback_message["created_at"] if fallback_message else datetime.utcnow(),
             confidence=0.0
         )
 
@@ -109,10 +109,22 @@ async def get_sessions_endpoint(user_id: str = Depends(get_current_user_id)):
 @router.get("/api/chat/{session_id}")
 async def get_chat_history_endpoint(session_id: str, user_id: str = Depends(get_current_user_id)):
     """Returns history only if the session belongs to the current user."""
-    messages = get_session_history(session_id, user_id)
-    if not messages:
+    if not session_belongs_to_user(session_id, user_id):
         raise HTTPException(status_code=404, detail="Session not found")
+    messages = get_session_history(session_id, user_id)
     return messages
+
+
+@router.delete("/api/sessions/{session_id}")
+async def delete_session_endpoint(session_id: str, user_id: str = Depends(get_current_user_id)):
+    """Deletes a user-owned session and its messages."""
+    if not session_belongs_to_user(session_id, user_id):
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    if not delete_session(session_id, user_id):
+        raise HTTPException(status_code=500, detail="Failed to delete session")
+
+    return {"success": True, "session_id": session_id}
 
 
 @router.get("/api/profile")

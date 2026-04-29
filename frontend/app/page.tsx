@@ -69,6 +69,42 @@ function formatMessageTime(date: Date) {
   }
 }
 
+function normalizeSessions(rawSessions: Session[]): Session[] {
+  const byId = new Map<string, Session>();
+
+  rawSessions.forEach((session) => {
+    if (!byId.has(session.session_id)) {
+      byId.set(session.session_id, session);
+    }
+  });
+
+  const uniqueById = Array.from(byId.values()).sort(
+    (left, right) =>
+      new Date(right.created_at).getTime() - new Date(left.created_at).getTime()
+  );
+
+  const deduped: Session[] = [];
+  for (const session of uniqueById) {
+    const duplicate = deduped.find((existing) => {
+      if (existing.title.trim() !== session.title.trim()) {
+        return false;
+      }
+
+      const timeDiff = Math.abs(
+        new Date(existing.created_at).getTime() - new Date(session.created_at).getTime()
+      );
+
+      return timeDiff < 60_000;
+    });
+
+    if (!duplicate) {
+      deduped.push(session);
+    }
+  }
+
+  return deduped;
+}
+
 export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -76,11 +112,14 @@ export default function ChatPage() {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isDesktopSidebarOpen, setIsDesktopSidebarOpen] = useState(true);
+  const [deletingSessionId, setDeletingSessionId] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string>("");
   const [checkingAuth, setCheckingAuth] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const supabaseRef = useRef<ReturnType<typeof createClient> | null>(null);
+  const sendLockRef = useRef(false);
   const router = useRouter();
 
   const getSupabase = useCallback(() => {
@@ -114,7 +153,7 @@ export default function ChatPage() {
       }
 
       const data = await response.json();
-      setSessions(data);
+      setSessions(normalizeSessions(data));
     } catch (error) {
       console.error("Failed to load sessions", error);
     }
@@ -160,43 +199,100 @@ export default function ChatPage() {
     init();
   }, [fetchSessions, getAuthToken, getSupabase, router]);
 
+  const syncSessionHistory = useCallback(
+    async (sid: string, options?: { closeSidebar?: boolean }) => {
+      const token = await getAuthToken();
+      if (!token) {
+        return false;
+      }
+
+      try {
+        const response = await fetch(`${API_BASE}/api/chat/${sid}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (!response.ok) {
+          return false;
+        }
+
+        const data = await response.json();
+        const loadedMessages: Message[] = data.map((msg: ChatHistoryMessage) => ({
+          id: msg.id || crypto.randomUUID(),
+          role: msg.role,
+          content: msg.content,
+          timestamp: new Date(msg.created_at),
+          sources: [],
+        }));
+
+        setMessages(loadedMessages);
+        setSessionId(sid);
+
+        if (options?.closeSidebar) {
+          setIsSidebarOpen(false);
+        }
+
+        return true;
+      } catch (error) {
+        console.error("Failed to sync session history", error);
+        return false;
+      }
+    },
+    [getAuthToken]
+  );
+
   const loadSession = async (sid: string) => {
-    const token = await getAuthToken();
-    if (!token) {
+    if (isLoading || deletingSessionId) {
       return;
     }
 
-    try {
-      const response = await fetch(`${API_BASE}/api/chat/${sid}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (!response.ok) {
-        return;
-      }
-
-      const data = await response.json();
-      const loadedMessages: Message[] = data.map((msg: ChatHistoryMessage) => ({
-        id: msg.id || crypto.randomUUID(),
-        role: msg.role,
-        content: msg.content,
-        timestamp: new Date(msg.created_at),
-        sources: [],
-      }));
-
-      setMessages(loadedMessages);
-      setSessionId(sid);
-      setIsSidebarOpen(false);
-    } catch (error) {
-      console.error("Failed to load session history", error);
-    }
+    await syncSessionHistory(sid, { closeSidebar: true });
   };
 
   const createNewChat = () => {
+    if (isLoading) {
+      return;
+    }
+
     setMessages([]);
     setSessionId(null);
     setIsSidebarOpen(false);
     fetchSessions();
+  };
+
+  const handleDeleteSession = async (sid: string) => {
+    if (isLoading || deletingSessionId) {
+      return;
+    }
+
+    const token = await getAuthToken();
+    if (!token) {
+      router.push("/sign-in");
+      return;
+    }
+
+    try {
+      setDeletingSessionId(sid);
+
+      const response = await fetch(`${API_BASE}/api/sessions/${sid}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!response.ok) {
+        throw new Error("Delete session failed");
+      }
+
+      setSessions((prev) => prev.filter((session) => session.session_id !== sid));
+
+      if (sessionId === sid) {
+        setMessages([]);
+        setSessionId(null);
+      }
+    } catch (error) {
+      console.error("Failed to delete session", error);
+    } finally {
+      setDeletingSessionId(null);
+    }
   };
 
   const handleLogout = async () => {
@@ -217,9 +313,11 @@ export default function ChatPage() {
 
   const sendMessage = async (text?: string) => {
     const question = (text || input).trim();
-    if (!question || isLoading) {
+    if (!question || isLoading || sendLockRef.current) {
       return;
     }
+
+    sendLockRef.current = true;
 
     const userMsg: Message = {
       id: crypto.randomUUID(),
@@ -234,19 +332,21 @@ export default function ChatPage() {
 
     const token = await getAuthToken();
     if (!token) {
+      sendLockRef.current = false;
       setIsLoading(false);
       router.push("/sign-in");
       return;
     }
 
     try {
+      const currentSessionId = sessionId;
       const response = await fetch(`${API_BASE}/api/chat`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ question, session_id: sessionId }),
+        body: JSON.stringify({ question, session_id: currentSessionId }),
       });
 
       if (!response.ok) {
@@ -254,21 +354,43 @@ export default function ChatPage() {
       }
 
       const data = await response.json();
+      const resolvedSessionId = data.session_id || currentSessionId;
 
-      if (!sessionId && data.session_id) {
+      if (!currentSessionId && data.session_id) {
         setSessionId(data.session_id);
-        setTimeout(fetchSessions, 500);
       }
+      await fetchSessions();
+      if (resolvedSessionId) {
+        const synced = await syncSessionHistory(resolvedSessionId);
+        if (!synced) {
+          const botMsg: Message = {
+            id: crypto.randomUUID(),
+            role: "assistant",
+            content: data.answer,
+            sources: data.sources,
+            timestamp: new Date(data.created_at),
+          };
 
-      const botMsg: Message = {
-        id: crypto.randomUUID(),
-        role: "assistant",
-        content: data.answer,
-        sources: data.sources,
-        timestamp: new Date(data.created_at),
-      };
-
-      setMessages((prev) => [...prev, botMsg]);
+          setMessages((prev) => [...prev, botMsg]);
+        } else if (data.sources?.length) {
+          setMessages((prev) => {
+            const updated = [...prev];
+            for (let index = updated.length - 1; index >= 0; index -= 1) {
+              if (
+                updated[index].role === "assistant" &&
+                updated[index].content === data.answer
+              ) {
+                updated[index] = {
+                  ...updated[index],
+                  sources: data.sources,
+                };
+                break;
+              }
+            }
+            return updated;
+          });
+        }
+      }
     } catch {
       const errMsg: Message = {
         id: crypto.randomUUID(),
@@ -280,6 +402,7 @@ export default function ChatPage() {
 
       setMessages((prev) => [...prev, errMsg]);
     } finally {
+      sendLockRef.current = false;
       setIsLoading(false);
     }
   };
@@ -341,6 +464,7 @@ export default function ChatPage() {
       <button
         type="button"
         onClick={createNewChat}
+        disabled={isLoading}
         className="primary-button mb-4 w-full px-4 py-3 text-sm"
       >
         <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/18">
@@ -369,29 +493,63 @@ export default function ChatPage() {
           <div className="space-y-2">
             {sessions.map((session) => {
               const isActive = sessionId === session.session_id;
+              const isDeleting = deletingSessionId === session.session_id;
 
               return (
-                <button
+                <div
                   key={session.session_id}
-                  type="button"
-                  onClick={() => loadSession(session.session_id)}
                   className={`w-full rounded-[20px] border px-4 py-3 text-left transition-all ${
                     isActive
                       ? "border-[var(--accent-primary)] bg-[var(--accent-tertiary)] shadow-sm"
                       : "border-[var(--border-subtle)] bg-white/72 hover:border-[var(--border-focus)] hover:bg-white"
                   }`}
-                  title={session.title}
                 >
-                  <p className="truncate text-sm font-semibold text-[var(--text-primary)]">
-                    {session.title}
-                  </p>
-                  <div className="mt-1 flex items-center justify-between gap-3 text-xs text-[var(--text-secondary)]">
-                    <span className="truncate">
-                      {isActive ? "Currently open" : "Saved conversation"}
-                    </span>
-                    <span>{formatSessionDate(session.created_at)}</span>
+                  <div className="flex items-start gap-3">
+                    <button
+                      type="button"
+                      onClick={() => loadSession(session.session_id)}
+                      disabled={isLoading || Boolean(deletingSessionId)}
+                      className="min-w-0 flex-1 text-left disabled:cursor-not-allowed disabled:opacity-60"
+                      title={session.title}
+                    >
+                      <p className="truncate text-sm font-semibold text-[var(--text-primary)]">
+                        {session.title}
+                      </p>
+                      <div className="mt-1 flex items-center justify-between gap-3 text-xs text-[var(--text-secondary)]">
+                        <span className="truncate">
+                          {isActive ? "Currently open" : "Saved conversation"}
+                        </span>
+                        <span>{formatSessionDate(session.created_at)}</span>
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteSession(session.session_id)}
+                      disabled={isLoading || Boolean(deletingSessionId)}
+                      className="secondary-button h-10 w-10 shrink-0 p-0 text-[var(--text-secondary)] disabled:cursor-not-allowed disabled:opacity-60"
+                      aria-label={`Delete ${session.title}`}
+                      title={isDeleting ? "Deleting..." : "Delete session"}
+                    >
+                      <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <polyline points="3 6 5 6 21 6" />
+                        <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                        <path d="M10 11v6" />
+                        <path d="M14 11v6" />
+                        <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                      </svg>
+                    </button>
                   </div>
-                </button>
+                </div>
               );
             })}
           </div>
@@ -487,8 +645,18 @@ export default function ChatPage() {
           {sidebarContent}
         </aside>
 
-        <aside className="hidden h-full w-[320px] flex-shrink-0 md:block">
-          <div className="h-full">{sidebarContent}</div>
+        <aside
+          className={`hidden h-full flex-shrink-0 overflow-hidden transition-[width] duration-300 md:block ${
+            isDesktopSidebarOpen ? "md:w-[320px]" : "md:w-0"
+          }`}
+        >
+          <div
+            className={`h-full transition-opacity duration-200 ${
+              isDesktopSidebarOpen ? "opacity-100" : "pointer-events-none opacity-0"
+            }`}
+          >
+            {sidebarContent}
+          </div>
         </aside>
 
         <div className="min-w-0 min-h-0 flex-1">
@@ -498,9 +666,16 @@ export default function ChatPage() {
                 <div className="flex items-center gap-3">
                   <button
                     type="button"
-                    onClick={() => setIsSidebarOpen(true)}
-                    className="secondary-button h-11 w-11 p-0 md:hidden"
-                    aria-label="Open sidebar"
+                    onClick={() => {
+                      if (window.innerWidth >= 768) {
+                        setIsDesktopSidebarOpen((prev) => !prev);
+                        return;
+                      }
+
+                      setIsSidebarOpen(true);
+                    }}
+                    className="secondary-button h-11 w-11 p-0"
+                    aria-label="Toggle sidebar"
                   >
                     <svg
                       width="20"
@@ -523,16 +698,6 @@ export default function ChatPage() {
                       Chat with FinBot
                     </h2>
                   </div>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => router.push("/profile")}
-                    className="secondary-button px-4 py-2.5 text-sm"
-                  >
-                    Edit profile
-                  </button>
                 </div>
               </div>
             </header>
