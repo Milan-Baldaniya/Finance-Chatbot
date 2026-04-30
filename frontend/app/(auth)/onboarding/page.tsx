@@ -132,9 +132,7 @@ export default function Onboarding() {
         <div className="grid gap-6 xl:grid-cols-[0.9fr_1.3fr]">
           <aside className="space-y-5 xl:sticky xl:top-8 xl:self-start">
             <div className="surface-card rounded-[30px] p-6">
-              <div className="flex h-14 w-14 items-center justify-center rounded-[20px] bg-[var(--accent-primary)] text-xl font-bold text-white glow-ring">
-                F
-              </div>
+
               <h2 className="mt-5 text-2xl font-semibold text-[var(--text-primary)]">
                 Why we ask this
               </h2>
