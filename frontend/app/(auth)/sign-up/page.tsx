@@ -26,11 +26,8 @@ export default async function SignUp({
 
             <div className="relative max-w-xl">
               <span className="status-pill">New account setup</span>
-              <div className="mt-6 flex h-16 w-16 items-center justify-center rounded-[22px] bg-[var(--accent-primary)] text-2xl font-bold text-white glow-ring">
-                F
-              </div>
               <h1 className="mt-6 text-4xl font-semibold leading-tight text-[var(--text-primary)]">
-                Create your FinBot account and start with a cleaner setup.
+                Create your account and start with a cleaner setup.
               </h1>
               <p className="mt-4 max-w-lg text-base leading-7 text-[var(--text-secondary)]">
                 After sign up, we will ask a short onboarding form so the chatbot
@@ -73,7 +70,7 @@ export default async function SignUp({
               <div>
                 <p className="section-kicker">Create account</p>
                 <h2 className="mt-2 text-3xl font-semibold text-[var(--text-primary)]">
-                  Join FinBot
+                  Get Started
                 </h2>
                 <p className="mt-3 text-sm leading-6 text-[var(--text-secondary)]">
                   Set up your login details first. Onboarding comes right after

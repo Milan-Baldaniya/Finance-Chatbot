@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "FinBot - AI Finance & Insurance Assistant",
+  title: "AI Finance & Insurance Assistant",
   description:
     "RAG-powered chatbot for Indian finance and insurance queries, grounded in official documents and regulations.",
 };

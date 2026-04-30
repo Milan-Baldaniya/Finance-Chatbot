@@ -26,15 +26,12 @@ export default async function SignIn({
 
             <div className="relative max-w-xl">
               <span className="status-pill">Secure account access</span>
-              <div className="mt-6 flex h-16 w-16 items-center justify-center rounded-[22px] bg-[var(--accent-primary)] text-2xl font-bold text-white glow-ring">
-                F
-              </div>
               <h1 className="mt-6 text-4xl font-semibold leading-tight text-[var(--text-primary)]">
                 Welcome back to your finance workspace.
               </h1>
               <p className="mt-4 max-w-lg text-base leading-7 text-[var(--text-secondary)]">
                 Sign in to continue with saved profile details, conversation
-                history, and grounded insurance guidance from FinBot.
+                history, and grounded insurance guidance.
               </p>
 
               <div className="mt-8 grid gap-4 sm:grid-cols-2">
@@ -116,7 +113,7 @@ export default async function SignIn({
                 </div>
 
                 <button type="submit" className="primary-button w-full px-5 py-3.5">
-                  Sign in to FinBot
+                  Sign in
                 </button>
               </form>
 
