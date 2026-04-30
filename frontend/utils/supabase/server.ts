@@ -14,9 +14,11 @@ export async function createClient() {
         },
         setAll(cookiesToSet) {
           try {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            )
+            cookiesToSet.forEach(({ name, value, options }) => {
+              // Force SameSite=None and Secure=true for iframe support
+              const iframeOptions = { ...options, sameSite: 'none' as const, secure: true }
+              cookieStore.set(name, value, iframeOptions)
+            })
           } catch {
             // The `setAll` method was called from a Server Component.
             // This can be ignored if you have middleware refreshing
