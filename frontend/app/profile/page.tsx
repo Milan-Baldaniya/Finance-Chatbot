@@ -192,10 +192,7 @@ export default function ProfilePage() {
             <h1 className="mt-2 text-3xl font-semibold text-[var(--text-primary)] md:text-4xl">
               Update your insurance details
             </h1>
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--text-secondary)] md:text-base">
-              Keep your information current so FinBot can answer with the best
-              available personal context.
-            </p>
+
           </div>
 
           <button
@@ -228,7 +225,7 @@ export default function ProfilePage() {
                 Good to know
               </p>
               <ul className="mt-4 space-y-3 text-sm leading-6 text-[var(--text-secondary)]">
-                <li>FinBot treats this profile as guidance, not final underwriting truth.</li>
+
                 <li>Document retrieval and citations still stay central to the answer flow.</li>
                 <li>You can return to chat immediately after saving.</li>
               </ul>
@@ -238,11 +235,10 @@ export default function ProfilePage() {
           <form onSubmit={handleSave} className="surface-card rounded-[32px] p-6 md:p-8">
             {message && (
               <div
-                className={`mb-6 rounded-[20px] px-4 py-3 text-sm ${
-                  message.includes('successfully')
-                    ? 'border border-emerald-200 bg-emerald-50 text-emerald-700'
-                    : 'border border-red-200 bg-red-50 text-red-700'
-                }`}
+                className={`mb-6 rounded-[20px] px-4 py-3 text-sm ${message.includes('successfully')
+                  ? 'border border-emerald-200 bg-emerald-50 text-emerald-700'
+                  : 'border border-red-200 bg-red-50 text-red-700'
+                  }`}
               >
                 {message}
               </div>
@@ -547,10 +543,7 @@ export default function ProfilePage() {
             </div>
 
             <div className="mt-8 flex flex-col gap-4 border-t border-[var(--border-subtle)] pt-6 md:flex-row md:items-center md:justify-between">
-              <p className="max-w-xl text-sm leading-6 text-[var(--text-secondary)]">
-                Keeping this profile current helps FinBot stay more relevant while
-                still relying on source-grounded retrieval for factual answers.
-              </p>
+
               <button
                 type="submit"
                 disabled={saving}

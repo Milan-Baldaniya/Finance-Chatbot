@@ -122,7 +122,7 @@ export default function Onboarding() {
               Set up your insurance profile
             </h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--text-secondary)] md:text-base">
-              These answers help FinBot respond with better context for eligibility,
+              These answers help chatbot respond with better context for eligibility,
               underwriting, family needs, and product fit.
             </p>
           </div>
@@ -152,7 +152,7 @@ export default function Onboarding() {
               <ul className="mt-4 space-y-3 text-sm leading-6 text-[var(--text-secondary)]">
                 <li>We save your details to your account only once.</li>
                 <li>You can edit the profile any time from the chat sidebar.</li>
-                <li>FinBot will still cite documents and avoid overconfident claims.</li>
+
               </ul>
             </div>
 
@@ -289,7 +289,7 @@ export default function Onboarding() {
                     <div className="grid gap-3 sm:grid-cols-2">
                       {[
                         { label: 'No', value: 'false', note: 'Use standard non-smoker assumptions.' },
-                        { label: 'Yes', value: 'true', note: 'Lets FinBot discuss premium impact more carefully.' },
+                        { label: 'Yes', value: 'true', note: 'Lets chatbot discuss premium impact more carefully.' },
                       ].map((option) => (
                         <label key={option.value} className="choice-chip cursor-pointer">
                           <input
@@ -446,11 +446,7 @@ export default function Onboarding() {
             </div>
 
             <div className="mt-8 flex flex-col gap-4 border-t border-[var(--border-subtle)] pt-6 md:flex-row md:items-center md:justify-between">
-              <p className="max-w-xl text-sm leading-6 text-[var(--text-secondary)]">
-                FinBot uses this as supporting context. It still relies on
-                retrieved sources and careful language for regulatory or
-                underwriting-sensitive questions.
-              </p>
+
               <button
                 type="submit"
                 disabled={isSubmitting}
