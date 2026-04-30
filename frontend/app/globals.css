@@ -1,14 +1,14 @@
 @import "tailwindcss";
 
 :root {
-  --bg-primary: #f6f1e8;
-  --bg-secondary: #fffdf8;
-  --bg-tertiary: #f1ebe1;
+  --bg-primary: #e9f6ff;
+  --bg-secondary: #f4fbff;
+  --bg-tertiary: #dcf0ff;
   --bg-card: rgba(255, 255, 255, 0.88);
   --bg-card-strong: #ffffff;
-  --bg-card-soft: rgba(249, 245, 238, 0.92);
+  --bg-card-soft: rgba(233, 246, 255, 0.92);
   --bg-input: rgba(255, 255, 255, 0.96);
-  --bg-hover: #f1ede6;
+  --bg-hover: #dcf0ff;
 
   --text-primary: #1f2a30;
   --text-secondary: #5f6f76;
@@ -66,9 +66,9 @@ html {
 body {
   min-height: 100vh;
   background:
-    radial-gradient(circle at top left, rgba(250, 243, 224, 0.85), transparent 30%),
-    radial-gradient(circle at top right, rgba(226, 240, 236, 0.85), transparent 28%),
-    linear-gradient(180deg, #fffdf8 0%, #f7f1e7 52%, #f2ece3 100%);
+    radial-gradient(circle at top left, rgba(233, 246, 255, 0.85), transparent 30%),
+    radial-gradient(circle at top right, rgba(200, 235, 255, 0.85), transparent 28%),
+    linear-gradient(180deg, #f4fbff 0%, #e9f6ff 52%, #dcf0ff 100%);
   color: var(--text-primary);
   font-family: var(--font-sans-stack);
   -webkit-font-smoothing: antialiased;

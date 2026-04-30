@@ -20,7 +20,7 @@ export default async function SignIn({
 
       <div className="relative mx-auto flex min-h-[calc(100vh-4rem)] max-w-6xl items-center">
         <div className="surface-card grid w-full overflow-hidden rounded-[34px] md:grid-cols-[1.05fr_0.95fr]">
-          <section className="relative overflow-hidden bg-[linear-gradient(140deg,#f3ebe0_0%,#fffdf8_48%,#edf5ff_100%)] px-8 py-10 md:px-10 md:py-12">
+          <section className="relative overflow-hidden bg-[linear-gradient(140deg,#e9f6ff_0%,#f4fbff_48%,#dcf0ff_100%)] px-8 py-10 md:px-10 md:py-12">
             <div className="absolute -right-10 top-10 h-40 w-40 rounded-full bg-white/70 blur-2xl" />
             <div className="absolute bottom-0 left-0 h-48 w-48 rounded-full bg-[rgba(210,136,66,0.13)] blur-3xl" />
 
