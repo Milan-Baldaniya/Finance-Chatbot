@@ -31,6 +31,13 @@ class Settings(BaseSettings):
     llm_model_id: str = "WiroAI/WiroAI-Finance-Qwen-7B"
     embedding_model_id: str = "sentence-transformers/all-MiniLM-L6-v2"
 
+    # ── RAG Retrieval ──
+    rag_retrieval_candidates: int = 15
+    rag_top_k: int = 5
+    rag_similarity_threshold: float = 0.65
+    enable_hybrid_search: bool = False
+    enable_reranking: bool = False
+
     model_config = {
         "env_file": ".env",
         "env_file_encoding": "utf-8",

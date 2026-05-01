@@ -1,0 +1,31 @@
+question,expected_document_title,expected_source_group,expected_page_start,difficulty,notes
+How many life insurance companies are listed in the database?,India Insurance Database 2026,brochures,2,easy,table-of-contents count lookup
+How many general insurance companies are listed in the database?,India Insurance Database 2026,brochures,2,easy,table-of-contents count lookup
+How many standalone health insurance companies are listed in the database?,India Insurance Database 2026,brochures,2,easy,table-of-contents count lookup
+How many reinsurance companies are listed in the database?,India Insurance Database 2026,brochures,2,easy,table-of-contents count lookup
+What is LIC Tech Term Plan 854?,India Insurance Database 2026,brochures,6,medium,product profile lookup
+What minimum income is recommended for LIC Tech Term?,India Insurance Database 2026,brochures,6,medium,eligibility field lookup
+What does the database say about non-smoker benefits for LIC Tech Term?,India Insurance Database 2026,brochures,6,hard,feature-level product detail
+What is a Family Floater health plan in this database?,India Insurance Database 2026,brochures,28,medium,health product type lookup
+Which product is called Red Carpet and who is eligible for it?,India Insurance Database 2026,brochures,42,medium,senior citizen product lookup
+What is third-party motor insurance?,India Insurance Database 2026,brochures,53,easy,motor FAQ exact-term lookup
+What is a standalone own damage motor policy?,India Insurance Database 2026,brochures,53,easy,motor FAQ exact-term lookup
+Which insurers accept NRI applications according to the decision logic?,India Insurance Database 2026,brochures,64,hard,decision-logic retrieval test
+What is insurance law in India?,Insurance Laws Handbook India 2026,compliance_docs,4,easy,definition lookup
+Why does insurance regulation matter?,Insurance Laws Handbook India 2026,compliance_docs,4,easy,concept explanation lookup
+What is the main purpose of the Insurance Act, 1938?,Insurance Laws Handbook India 2026,compliance_docs,5,medium,master-index legal lookup
+What protection does Section 45 provide in life insurance?,Insurance Laws Handbook India 2026,compliance_docs,6,medium,section-specific legal lookup
+What is the grace period for premium payment before policy lapse?,Insurance Laws Handbook India 2026,compliance_docs,6,easy,exact legal term lookup
+What solvency ratio is required at all times?,Insurance Laws Handbook India 2026,compliance_docs,6,easy,exact legal metric lookup
+What happened to the FDI cap in the 2021 insurance amendment?,Insurance Laws Handbook India 2026,compliance_docs,4,medium,amendment timeline lookup
+What does the handbook say about the role, powers, and structure of IRDAI?,Insurance Laws Handbook India 2026,compliance_docs,2,medium,regulatory navigation test
+What role does the Consumer Protection Act, 2019 play in insurance law?,Insurance Laws Handbook India 2026,compliance_docs,2,medium,supporting-law reference
+Where does the handbook place mis-selling protection?,Insurance Laws Handbook India 2026,compliance_docs,2,hard,toc-driven exact-term retrieval
+What is the DEA Fund Scheme, 2014 and when did it come into effect?,RBI Financial Literacy,faq_docs,3,medium,FAQ retrieval from RBI booklet
+After how many years of inactivity are deposit balances transferred to the DEA Fund?,RBI Financial Literacy,faq_docs,3,easy,exact-threshold lookup
+Can a depositor claim a refund from the DEA Fund?,RBI Financial Literacy,faq_docs,4,easy,direct FAQ lookup
+Is there a time limit for claiming money from the DEA Fund?,RBI Financial Literacy,faq_docs,4,easy,direct FAQ lookup
+What should a depositor do if the bank is under liquidation?,RBI Financial Literacy,faq_docs,4,medium,process lookup
+What does the RBI booklet say about unclaimed mutual funds?,RBI Financial Literacy,faq_docs,5,easy,topic lookup
+What KYC or OVD documents are mentioned for unclaimed mutual fund claims?,RBI Financial Literacy,faq_docs,5,medium,document checklist retrieval
+What is MITRA and how can it help identify unclaimed amounts?,RBI Financial Literacy,faq_docs,6,medium,tool-definition lookup

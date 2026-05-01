@@ -1,28 +1,36 @@
-import sys
 import os
+import sys
 
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from app.services.llm import generate_answer
 from app.core.config import get_settings
+from app.services.llm import generate_grounded_answer
 
-print(f"Using Token: {get_settings().huggingface_api_token[:5]}...")
 
-# Mock retrieved chunks
+settings = get_settings()
+token_preview = f"{settings.huggingface_api_token[:5]}..." if settings.huggingface_api_token else "missing"
+print(f"Using Token: {token_preview}")
+
 mock_chunks = [
     {
         "document_title": "Test Doc",
-        "page_number": 1,
-        "content": "In India, the Insurance Regulatory and Development Authority of India (IRDAI) is the primary regulatory body for the insurance sector."
+        "page_start": 1,
+        "page_end": 1,
+        "section_title": "Regulatory Overview",
+        "chunk_text": (
+            "In India, the Insurance Regulatory and Development Authority of India "
+            "(IRDAI) is the primary regulatory body for the insurance sector."
+        ),
     }
 ]
 
 question = "What is the primary regulatory body for insurance in India?"
 print(f"Testing question: {question}")
+
 try:
-    answer = generate_answer(question, mock_chunks)
+    answer = generate_grounded_answer(question, mock_chunks, history=[], profile_summary="")
     print("\n--- LLM ANSWER ---")
     print(answer)
-except Exception as e:
-    print(f"\n--- ERROR ---")
-    print(e)
+except Exception as exc:
+    print("\n--- ERROR ---")
+    print(exc)

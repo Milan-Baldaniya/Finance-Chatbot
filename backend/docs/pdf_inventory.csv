@@ -1,0 +1,52 @@
+file_name,document_title,source_group,domain,priority,expected_use_case,version,notes
+Auto_Secure_Commercial_Vehicle_Package_Policy_Base_Policy_Wording_22b7905015.pdf,Auto Secure Commercial Vehicle Package Policy Base Policy Wording,policy_wordings,motor_insurance,high,coverage-exclusions-and-eligibility-lookup,1,seed-query-category-commercial_vehicle
+Auto_Secure_Motor_Trade_Internal_Risks_Brochure_8e3042948f.pdf,Auto Secure Motor Trade Internal Risks Brochure,brochures,motor_insurance,medium,benefits-and-features-summary,1,seed-query-category-motor_trade
+Auto_Secure_Motor_Trade_Package_Policy_Brochure_709d337083.pdf,Auto Secure Motor Trade Package Policy Brochure,brochures,motor_insurance,medium,benefits-and-features-summary,1,seed-query-category-motor_trade
+Auto_Secure_Private_Car_Package_Base_Policy_Wording_31ed1ddc55.pdf,Auto Secure Private Car Package Base Policy Wording,policy_wordings,motor_insurance,high,coverage-exclusions-and-eligibility-lookup,1,seed-query-category-private_car
+Auto_Secure_Private_Car_Package_Policy_Brochure_7299c8a66f.pdf,Auto Secure Private Car Package Policy Brochure,brochures,motor_insurance,medium,benefits-and-features-summary,1,seed-query-category-private_car
+Auto_Secure_Two_Wheeler_Package_Policy_Base_Policy_Wording_56b400846a.pdf,Auto Secure Two Wheeler Package Policy Base Policy Wording,policy_wordings,motor_insurance,high,coverage-exclusions-and-eligibility-lookup,1,seed-query-category-two_wheeler
+Group_Medi_Care_6c57b64356.pdf,Group Medi Care,policy_wordings,health_insurance,high,coverage-exclusions-and-eligibility-lookup,1,seed-query-category-health_insurance
+Group_Medi_Care_Optional_PW_90666a8a55.pdf,Group Medi Care Optional PW,policy_wordings,health_insurance,high,coverage-exclusions-and-eligibility-lookup,1,seed-query-category-health_insurance
+Group_Medicare_360_Base_1c589d6908.pdf,Group Medicare 360 Base,policy_wordings,health_insurance,high,coverage-exclusions-and-eligibility-lookup,1,seed-query-category-health_insurance
+Medicare_LITE_Policy_Wordings_4fdf058f02.pdf,Medicare LITE Policy Wordings,policy_wordings,health_insurance,high,coverage-exclusions-and-eligibility-lookup,1,seed-query-category-health_insurance
+Medicare_Plus_bc171907df.pdf,Medicare Plus,policy_wordings,health_insurance,high,coverage-exclusions-and-eligibility-lookup,1,seed-query-category-health_insurance
+OptimaSecure+-BR-982561265045.pdf,OptimaSecure BR,brochures,health_insurance,medium,benefits-and-features-summary,1,seed-query-category-health_insurance
+OptimaSecure+A5Leaflet-307611592842.pdf,OptimaSecure A5Leaflet,brochures,health_insurance,medium,benefits-and-features-summary,1,seed-query-category-health_insurance
+PolicyWordings_EasyHealth-114935539788.pdf,PolicyWordings EasyHealth,policy_wordings,health_insurance,high,coverage-exclusions-and-eligibility-lookup,1,seed-query-category-health_insurance
+PolicyWordings_OptimaRestore-811520192624.pdf,PolicyWordings OptimaRestore,policy_wordings,health_insurance,high,coverage-exclusions-and-eligibility-lookup,1,seed-query-category-health_insurance
+PolicyWordings_myOptimaSecure-76673175551.pdf,PolicyWordings myOptimaSecure,policy_wordings,health_insurance,high,coverage-exclusions-and-eligibility-lookup,1,seed-query-category-health_insurance
+Policy_Wordings_auto_secure_compulsory_personal_accident_owner_driver_motor_insurance_policy.pdf_477a9eea7a.pdf,Policy Wordings Auto Secure Compulsory Personal Accident Owner Driver,policy_wordings,personal_accident,high,coverage-exclusions-and-eligibility-lookup,1,seed-query-category-personal_accident
+Policy_Wordings_auto_secure_motor_trade_internal_risks.pdf_4fbcad27ea.pdf,Policy Wordings Auto Secure Motor Trade Internal Risks,policy_wordings,motor_insurance,high,coverage-exclusions-and-eligibility-lookup,1,seed-query-category-motor_trade
+Policy_Wordings_auto_secure_private_car_package_policy.pdf_703fae35ff.pdf,Policy Wordings Auto Secure Private Car Package Policy,policy_wordings,motor_insurance,high,coverage-exclusions-and-eligibility-lookup,1,seed-query-category-private_car
+Policywordings_SeriousIllnessBooster-941452609852.pdf,Policywordings SeriousIllnessBooster,policy_wordings,health_insurance,high,coverage-exclusions-and-eligibility-lookup,1,seed-query-category-health_insurance
+Tata_AIG_Criti_Medicare_Brochure_0a0ed36a23.pdf,Tata AIG Criti Medicare Brochure,brochures,health_insurance,medium,benefits-and-features-summary,1,seed-query-category-health_insurance
+Tata_AIG_Criti_Medicare_Policy_Wordings_48427e4123.pdf,Tata AIG Criti Medicare Policy Wordings,policy_wordings,health_insurance,high,coverage-exclusions-and-eligibility-lookup,1,seed-query-category-health_insurance
+Tata_AIG_Medi_Care_Plus_e8a0cf5358.pdf,Tata AIG Medi Care Plus,policy_wordings,health_insurance,high,coverage-exclusions-and-eligibility-lookup,1,seed-query-category-health_insurance
+abcd-chronic-care---policy-wordings-588300043193.pdf,ABCD Chronic Care Policy Wordings,policy_wordings,health_insurance,high,coverage-exclusions-and-eligibility-lookup,1,seed-query-category-health_insurance
+arogya-sanjeevani-brochure-hehi-710257448017.pdf,Arogya Sanjeevani Brochure HEHI,brochures,health_insurance,medium,benefits-and-features-summary,1,seed-query-category-health_insurance
+critical-advantage-rider-pw-cis(1)-992823989987.pdf,Critical Advantage Rider PW CIS 1,policy_wordings,health_insurance,high,coverage-exclusions-and-eligibility-lookup,1,seed-query-category-health_insurance
+critical-advantage-rider-pw-cis(2)-791699772982.pdf,Critical Advantage Rider PW CIS 2,policy_wordings,health_insurance,high,coverage-exclusions-and-eligibility-lookup,1,seed-query-category-health_insurance
+critical-illness-168260206835.pdf,Critical Illness,policy_wordings,health_insurance,high,coverage-exclusions-and-eligibility-lookup,1,seed-query-category-health_insurance
+critical-illness-platinum-brochure-232468324369.pdf,Critical Illness Platinum Brochure,brochures,health_insurance,medium,benefits-and-features-summary,1,seed-query-category-health_insurance
+day2day-care-brochure-2021-745464406105.pdf,Day2Day Care Brochure 2021,brochures,health_insurance,medium,benefits-and-features-summary,1,seed-query-category-health_insurance
+hospital-daily-cash-pw-845251401622.pdf,Hospital Daily Cash PW,policy_wordings,health_insurance,high,coverage-exclusions-and-eligibility-lookup,1,seed-query-category-health_insurance
+ipa-rider---pww(1)-893292659493.pdf,IPA Rider PWW 1,policy_wordings,personal_accident,high,coverage-exclusions-and-eligibility-lookup,1,seed-query-category-personal_accident
+ipa-rider---pww(2)-421323065222.pdf,IPA Rider PWW 2,policy_wordings,personal_accident,high,coverage-exclusions-and-eligibility-lookup,1,seed-query-category-personal_accident
+ipa-rider---pww-819611261262.pdf,IPA Rider PWW,policy_wordings,personal_accident,high,coverage-exclusions-and-eligibility-lookup,1,seed-query-category-personal_accident
+koti-suraksha-one-pager-557225965529.pdf,Koti Suraksha One Pager,brochures,health_insurance,medium,benefits-and-features-summary,1,seed-query-category-health_insurance
+limitless-452429205431.pdf,Limitless,policy_wordings,health_insurance,high,coverage-exclusions-and-eligibility-lookup,1,seed-query-category-health_insurance
+medicare_brochure_b82c0d1796.pdf,Medicare Brochure,brochures,health_insurance,medium,benefits-and-features-summary,1,seed-query-category-health_insurance
+medicare_lite_2fb4f24329.pdf,Medicare Lite,policy_wordings,health_insurance,high,coverage-exclusions-and-eligibility-lookup,1,seed-query-category-health_insurance
+medicare_premier_brochure_ab0b8e7691.pdf,Medicare Premier Brochure,brochures,health_insurance,medium,benefits-and-features-summary,1,seed-query-category-health_insurance
+medicare_select_brochure_eefe5cd661.pdf,Medicare Select Brochure,brochures,health_insurance,medium,benefits-and-features-summary,1,seed-query-category-health_insurance
+medicare_select_policy_wording_0faeeb61c5.pdf,Medicare Select Policy Wording,policy_wordings,health_insurance,high,coverage-exclusions-and-eligibility-lookup,1,seed-query-category-health_insurance
+myhealth-critical-illness---pww(1)-697687100623.pdf,MyHealth Critical Illness PWW 1,policy_wordings,health_insurance,high,coverage-exclusions-and-eligibility-lookup,1,seed-query-category-health_insurance
+myhealth-koti-suraksha-brochure-764029290091.pdf,MyHealth Koti Suraksha Brochure,brochures,health_insurance,medium,benefits-and-features-summary,1,seed-query-category-health_insurance
+optima-wellbeing-(add-on)-pw(1)-222339499319.pdf,Optima Wellbeing Add-On PW 1,policy_wordings,health_insurance,high,coverage-exclusions-and-eligibility-lookup,1,seed-query-category-health_insurance
+parenthood-613771733087.pdf,Parenthood,policy_wordings,health_insurance,high,coverage-exclusions-and-eligibility-lookup,1,seed-query-category-health_insurance
+protector-rider---sep-2021(1)-489847953208.pdf,Protector Rider Sep 2021 1,policy_wordings,health_insurance,high,coverage-exclusions-and-eligibility-lookup,1,seed-query-category-health_insurance
+protector-rider---sep-2021(2)-895849538924.pdf,Protector Rider Sep 2021 2,policy_wordings,health_insurance,high,coverage-exclusions-and-eligibility-lookup,1,seed-query-category-health_insurance
+tata_aig_medicare_policy_wordings_a9aaf64d8b.pdf,Tata AIG Medicare Policy Wordings,policy_wordings,health_insurance,high,coverage-exclusions-and-eligibility-lookup,1,seed-query-category-health_insurance
+tata_aig_medicare_premier_policy_wordings_781aa2fd94.pdf,Tata AIG Medicare Premier Policy Wordings,policy_wordings,health_insurance,high,coverage-exclusions-and-eligibility-lookup,1,seed-query-category-health_insurance
+India Insurance Database 2026.pdf,Comprehensive Database of Insurance Companies & Products in India,product_reference_database,multi_line_insurance,high,company-and-product-lookup,1,seed-query-category-multi_line_insurance
+Insurance_Laws_Handbook_India_2026.pdf,Insurance Laws Handbook India 2026,regulatory_legal_handbook,insurance_law,high,regulatory-and-compliance-lookup,1,seed-query-category-insurance_regulation

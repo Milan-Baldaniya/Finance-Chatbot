@@ -1,16 +1,23 @@
 from datetime import datetime
 from fastapi import APIRouter, HTTPException, Depends
 from app.schemas.chat import ChatRequest, ChatResponse, SourceCitation
-from app.core.db import get_db
+from app.core.config import get_settings
 from app.core.auth import get_current_user_id
 from app.schemas.profile import UserProfilePayload
-from app.services.llm import generate_answer, expand_query
-from app.services.embeddings import generate_embeddings
+from app.services.llm import generate_grounded_answer
+from app.services.retrieval import retrieve_context, confidence_for_chunks
 from app.services.memory import create_session, delete_session, get_all_sessions, get_recent_messages, get_session_history, save_message, session_belongs_to_user
 from app.services.profile import get_profile as fetch_profile
 from app.services.profile import get_profile_summary, upsert_profile
 
 router = APIRouter()
+settings = get_settings()
+
+def _chunk_text(chunk: dict) -> str:
+    return chunk.get("chunk_text", chunk.get("content", "")) or ""
+
+def _chunk_page_number(chunk: dict):
+    return chunk.get("page_start", chunk.get("page_number"))
 
 
 @router.post("/api/chat", response_model=ChatResponse)
@@ -39,42 +46,38 @@ async def chat(request: ChatRequest, user_id: str = Depends(get_current_user_id)
     profile_summary = get_profile_summary(user_id)
     
     try:
-        # 2. Expand/Rewrite Query for better retrieval if it's a follow-up
-        standalone_query = expand_query(request.question, history)
-        
-        # 3. Embed the standalone query
-        query_vectors = generate_embeddings([standalone_query])
-        if not query_vectors:
-            raise HTTPException(status_code=500, detail="Failed to embed query.")
-        query_embedding = query_vectors[0]
-        
-        # 4. RETRIEVAL (PDFs Only)
-        db = get_db()
-        pdf_response = db.rpc(
-            "match_document_chunks", 
-            {
-                "query_embedding": query_embedding,
-                "match_threshold": 0.2, 
-                "match_count": 5
-            }
-        ).execute()
-        
-        top_chunks = pdf_response.data if pdf_response.data else []
-        
-        # 5. Generate Answer via LLM (passing original query, history, and profile)
-        answer = generate_answer(request.question, top_chunks, history, profile_summary)
+        retrieval = retrieve_context(request.question, history)
+        top_chunks = retrieval["final_chunks"]
+        confidence = confidence_for_chunks(top_chunks)
+
+        if retrieval["error"] or confidence < settings.rag_similarity_threshold:
+            answer = "I could not find enough information in the available documents."
+            top_chunks = []
+            confidence = 0.0
+        else:
+            answer = generate_grounded_answer(
+                query=request.question,
+                context_chunks=top_chunks,
+                history=history,
+                profile_summary=profile_summary,
+            )
         assistant_message = save_message(session_id, user_id, "assistant", answer)
         
         # 6. Map citations
         sources = []
         for chunk in top_chunks:
-            preview = chunk.get('content', '')[:100].replace('\n', ' ') + "..."
+            preview = _chunk_text(chunk)[:100].replace('\n', ' ') + "..."
             sources.append(
                 SourceCitation(
+                    chunk_id=chunk.get("chunk_id"),
+                    document_id=chunk.get("document_id"),
                     document_title=chunk.get('document_title', 'Unknown Document'),
-                    page_number=chunk.get('page_number'),
+                    page_start=chunk.get("page_start"),
+                    page_end=chunk.get("page_end"),
+                    section_title=chunk.get("section_title"),
+                    page_number=_chunk_page_number(chunk),
                     chunk_preview=preview,
-                    relevance_score=chunk.get('similarity', 0.0)
+                    relevance_score=chunk.get('blended_score', chunk.get('similarity', 0.0))
                 )
             )
             
@@ -83,7 +86,7 @@ async def chat(request: ChatRequest, user_id: str = Depends(get_current_user_id)
             sources=sources,
             session_id=session_id,
             created_at=assistant_message["created_at"] if assistant_message else datetime.utcnow(),
-            confidence=max((s.relevance_score for s in sources), default=0.0)
+            confidence=confidence
         )
         
     except Exception as e:
@@ -98,6 +101,35 @@ async def chat(request: ChatRequest, user_id: str = Depends(get_current_user_id)
             created_at=fallback_message["created_at"] if fallback_message else datetime.utcnow(),
             confidence=0.0
         )
+
+
+@router.get("/api/retrieval/debug")
+async def retrieval_debug(
+    query: str,
+    session_id: str | None = None,
+    user_id: str = Depends(get_current_user_id),
+):
+    """
+    Internal retrieval debug endpoint.
+    """
+    history = []
+    if session_id:
+        if not session_belongs_to_user(session_id, user_id):
+            raise HTTPException(status_code=404, detail="Session not found")
+        history = get_recent_messages(session_id, user_id, limit=50)
+
+    retrieval = retrieve_context(query=query, history=history)
+    return {
+        "query": query,
+        "session_id": session_id,
+        "rewritten_query": retrieval.get("rewritten_query"),
+        "intent": retrieval.get("intent"),
+        "filters": retrieval.get("filters"),
+        "vector_hits": retrieval.get("vector_hits", []),
+        "keyword_hits": retrieval.get("keyword_hits", []),
+        "final_chunks": retrieval.get("final_chunks", []),
+        "error": retrieval.get("error"),
+    }
 
 
 @router.get("/api/sessions")

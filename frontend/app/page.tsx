@@ -7,7 +7,12 @@ import remarkGfm from "remark-gfm";
 import { createClient } from "@/utils/supabase/client";
 
 interface SourceCitation {
+  chunk_id?: string | null;
+  document_id?: string | null;
   document_title: string;
+  page_start?: number | null;
+  page_end?: number | null;
+  section_title?: string | null;
   page_number: number | null;
   chunk_preview: string;
   relevance_score: number | null;
@@ -67,6 +72,25 @@ function formatMessageTime(date: Date) {
   } catch {
     return "";
   }
+}
+
+function formatCitationPage(source: SourceCitation) {
+  if (source.page_start != null && source.page_end != null) {
+    if (source.page_start === source.page_end) {
+      return `page ${source.page_start}`;
+    }
+    return `pages ${source.page_start}-${source.page_end}`;
+  }
+
+  if (source.page_start != null) {
+    return `page ${source.page_start}`;
+  }
+
+  if (source.page_number != null) {
+    return `page ${source.page_number}`;
+  }
+
+  return "";
 }
 
 function normalizeSessions(rawSessions: Session[]): Session[] {
@@ -750,16 +774,21 @@ export default function ChatPage() {
                                   <div className="mt-4 flex flex-wrap gap-2 px-1">
                                     {msg.sources.map((src, sourceIndex) => (
                                       <div
-                                        key={`${src.document_title}-${sourceIndex}`}
+                                        key={`${src.chunk_id ?? src.document_title}-${sourceIndex}`}
                                         className="inline-flex max-w-full items-center gap-2 rounded-full border border-[var(--border-subtle)] bg-[var(--bg-secondary)] px-3 py-2 text-xs text-[var(--text-secondary)]"
                                         title={src.chunk_preview}
                                       >
                                         <span className="truncate font-semibold text-[var(--text-primary)]">
                                           {src.document_title}
                                         </span>
-                                        {src.page_number !== null && (
+                                        {formatCitationPage(src) && (
                                           <span className="text-[var(--accent-primary)]">
-                                            page {src.page_number}
+                                            {formatCitationPage(src)}
+                                          </span>
+                                        )}
+                                        {src.section_title && (
+                                          <span className="truncate text-[var(--text-secondary)]">
+                                            {src.section_title}
                                           </span>
                                         )}
                                       </div>

@@ -21,6 +21,18 @@ FALLBACK_MODELS = [
     "Qwen/Qwen2.5-3B-Instruct",
 ]
 
+def _chunk_text(chunk: Dict) -> str:
+    return chunk.get("chunk_text", chunk.get("content", "")) or ""
+
+def _chunk_page(chunk: Dict) -> str:
+    page_start = chunk.get("page_start", chunk.get("page_number"))
+    page_end = chunk.get("page_end", page_start)
+    if page_start and page_end and page_start != page_end:
+        return f"{page_start}-{page_end}"
+    if page_start:
+        return str(page_start)
+    return "N/A"
+
 
 def get_chat_client() -> InferenceClient:
     return InferenceClient(token=settings.huggingface_api_token)
@@ -59,7 +71,7 @@ def score_chunk(chunk: Dict, keywords: List[str]) -> int:
     """
     Scoring function to rank context chunks.
     """
-    text = chunk["content"].lower()
+    text = _chunk_text(chunk).lower()
     return sum(1 for k in keywords if k in text)
 
 
@@ -86,7 +98,7 @@ def filter_context(intent: str, chunks: List[Dict]) -> List[Dict]:
 
         filtered_chunks = []
         for chunk in chunks:
-            content_lower = chunk["content"].lower()
+            content_lower = _chunk_text(chunk).lower()
 
             if any(ek in content_lower for ek in exclude_keywords):
                 continue
@@ -179,7 +191,7 @@ def generate_answer(query: str, context_chunks: List[Dict], history: Optional[Li
 
     # 3. Prompt Construction
     context_text = "\n\n".join(
-        f"[Source: {c['document_title']} - Page {c['page_number']}]\n{c['content']}"
+        f"[Source: {c.get('document_title', 'Unknown Document')} - Page {_chunk_page(c)}]\n{_chunk_text(c)}"
         for c in filtered_chunks
     )
 
@@ -248,5 +260,74 @@ def generate_answer(query: str, context_chunks: List[Dict], history: Optional[Li
             
         except Exception as e:
             logger.error(f"Error calling LLM model '{model_name}': {e}")
+
+    return "Sorry, I am currently unable to generate an answer due to an AI service error."
+
+
+def generate_grounded_answer(
+    query: str,
+    context_chunks: List[Dict],
+    history: Optional[List[Dict]] = None,
+    profile_summary: str = "",
+) -> str:
+    """
+    Strict grounded answering using retrieved evidence.
+    """
+    client = get_chat_client()
+    conversation_context = ""
+    if history:
+        recent_user_questions = [
+            msg["content"].strip()
+            for msg in history
+            if msg.get("role") == "user" and msg.get("content")
+        ][-4:]
+        if recent_user_questions:
+            conversation_context = "Conversation background (secondary, not evidence):\n" + "\n".join(
+                f"- {question}" for question in recent_user_questions
+            )
+
+    context_text = "\n\n".join(
+        (
+            f"Document: {c.get('document_title', 'Unknown Document')}\n"
+            f"Page: {_chunk_page(c)}\n"
+            f"Section: {c.get('section_title', 'General')}\n"
+            f"Text: {_chunk_text(c)}"
+        )
+        for c in context_chunks
+    )
+
+    system_prompt = (
+        "You are FinBot. Answer ONLY from provided context.\n"
+        "If context is insufficient, reply exactly: I could not find enough information in the available documents.\n"
+        "Do not invent policy terms, exclusions, numbers, or legal conditions.\n"
+        "Cite document and page in your answer.\n"
+        "If sources conflict, explicitly mention the conflict.\n"
+        "Keep retrieved evidence as primary context. Chat history and profile are secondary.\n"
+    )
+    if profile_summary:
+        system_prompt += f"\nProfile summary (secondary):\n{profile_summary}\n"
+
+    user_prompt = (
+        f"{conversation_context}\n\n" if conversation_context else ""
+    ) + (
+        f"Context:\n{context_text}\n\n"
+        f"Question: {query}\n\n"
+        "Provide a grounded answer with concise citations."
+    )
+
+    messages = [{"role": "system", "content": system_prompt}]
+    messages.append({"role": "user", "content": user_prompt})
+
+    for model_name in _candidate_models():
+        try:
+            response = client.chat_completion(
+                model=model_name,
+                messages=messages,
+                max_tokens=500,
+                temperature=0.15,
+            )
+            return response.choices[0].message.content.strip()
+        except Exception as e:
+            logger.error(f"Error calling LLM model '{model_name}' for grounded answer: {e}")
 
     return "Sorry, I am currently unable to generate an answer due to an AI service error."
