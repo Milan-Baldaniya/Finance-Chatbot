@@ -1,6 +1,0 @@
-cd "C:\Users\MILAN\Downloads\Finance chatbot\backend"
-.\venv\Scripts\python.exe -m uvicorn app.main:app --reload --port 8001
-
-cd "C:\Users\MILAN\Downloads\Finance chatbot\frontend"
-npm.cmd run dev -- --port 3000
-
