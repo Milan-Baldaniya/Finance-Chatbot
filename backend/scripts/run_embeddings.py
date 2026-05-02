@@ -31,8 +31,6 @@ from app.services.embeddings import generate_embeddings
 
 
 STATUS_EMBEDDING_PENDING = "embedding_pending"
-STATUS_EMBEDDING_PENDING_WARNINGS = "embedding_pending_with_warnings"
-STATUS_EMBEDDING_IN_PROGRESS = "embedding_in_progress"
 STATUS_EMBEDDING_FAILED = "embedding_failed"
 STATUS_PROCESSED = "processed"
 STATUS_PROCESSED_WARNINGS = "processed_with_warnings"
@@ -88,7 +86,6 @@ def _candidate_document_ids(db, document_id: Optional[str] = None, limit_docs: O
         .select("id, status")
         .in_("status", [
             STATUS_EMBEDDING_PENDING,
-            STATUS_EMBEDDING_PENDING_WARNINGS,
             STATUS_EMBEDDING_FAILED,
             # Backward compatibility with previous script:
             STATUS_PROCESSED_WARNINGS,
@@ -290,8 +287,9 @@ def main():
             _set_document_status(
                 db,
                 doc_id,
-                STATUS_EMBEDDING_IN_PROGRESS,
+                STATUS_EMBEDDING_PENDING,
                 {
+                    "embedding_state": "in_progress",
                     "embedding_started_at": now_iso(),
                     "embedding_last_batch_size": args.batch_size,
                 },
@@ -370,6 +368,7 @@ def main():
                     doc_id,
                     STATUS_EMBEDDING_FAILED,
                     {
+                        "embedding_state": "failed",
                         "embedding_error": failure_reason,
                         "embedding_failed_at": now_iso(),
                         "embedding_updated_count": updated_count,
@@ -379,8 +378,9 @@ def main():
                 _set_document_status(
                     db,
                     doc_id,
-                    STATUS_EMBEDDING_IN_PROGRESS,
+                    STATUS_EMBEDDING_PENDING,
                     {
+                        "embedding_state": "completed",
                         "embedding_completed_at": now_iso(),
                         "embedding_updated_count": updated_count,
                     },

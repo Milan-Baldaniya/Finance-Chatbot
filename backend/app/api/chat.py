@@ -51,16 +51,15 @@ async def chat(request: ChatRequest, user_id: str = Depends(get_current_user_id)
         confidence = confidence_for_chunks(top_chunks)
 
         if retrieval["error"] or confidence < settings.rag_similarity_threshold:
-            answer = "I could not find enough information in the available documents."
             top_chunks = []
             confidence = 0.0
-        else:
-            answer = generate_grounded_answer(
-                query=request.question,
-                context_chunks=top_chunks,
-                history=history,
-                profile_summary=profile_summary,
-            )
+
+        answer = generate_grounded_answer(
+            query=request.question,
+            context_chunks=top_chunks,
+            history=history,
+            profile_summary=profile_summary,
+        )
         assistant_message = save_message(session_id, user_id, "assistant", answer)
         
         # 6. Map citations

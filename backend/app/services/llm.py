@@ -4,6 +4,7 @@ Upgraded with robust classification, semantic coverage, context ranking, output 
 """
 
 import logging
+import re
 from typing import Dict, List, Optional
 
 from huggingface_hub import InferenceClient
@@ -17,9 +18,11 @@ logger = logging.getLogger(__name__)
 settings = get_settings()
 
 FALLBACK_MODELS = [
+    "WiroAI/WiroAI-Finance-Qwen-7B",
     "Qwen/Qwen2.5-7B-Instruct",
     "Qwen/Qwen2.5-3B-Instruct",
 ]
+UNSUPPORTED_MODELS = set()
 
 def _chunk_text(chunk: Dict) -> str:
     return chunk.get("chunk_text", chunk.get("content", "")) or ""
@@ -34,6 +37,26 @@ def _chunk_page(chunk: Dict) -> str:
     return "N/A"
 
 
+def _postprocess_grounded_answer(answer: str) -> str:
+    """
+    Keep the answer natural in the chat body.
+    The UI already shows citations separately, so strip obvious
+    source-reference lines if the model still emits them.
+    """
+    if not answer:
+        return answer
+
+    lines = []
+    for line in answer.splitlines():
+        if re.match(r"^\s*(document|page|section|source|sources|reference|references)\s*:", line, flags=re.IGNORECASE):
+            continue
+        lines.append(line)
+
+    cleaned = "\n".join(lines).strip()
+    cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
+    return cleaned or answer.strip()
+
+
 def get_chat_client() -> InferenceClient:
     return InferenceClient(token=settings.huggingface_api_token)
 
@@ -44,11 +67,17 @@ def _candidate_models() -> List[str]:
     ordered_models = []
 
     for model in models:
-        if model and model not in seen:
+        if model and model not in seen and model not in UNSUPPORTED_MODELS:
             ordered_models.append(model)
             seen.add(model)
 
     return ordered_models
+
+
+def _remember_unsupported_model(model_name: str, error: Exception) -> None:
+    message = str(error).lower()
+    if "model_not_supported" in message or "not supported by any provider" in message:
+        UNSUPPORTED_MODELS.add(model_name)
 
 
 def classify_intent(query: str) -> str:
@@ -251,7 +280,7 @@ def generate_answer(query: str, context_chunks: List[Dict], history: Optional[Li
                 model=model_name,
                 messages=messages,
                 max_tokens=600,
-                temperature=0.35  # Increased temperature for conversational, natural behavior
+                temperature=0.40
             )
             raw_answer = response.choices[0].message.content.strip()
             
@@ -259,6 +288,7 @@ def generate_answer(query: str, context_chunks: List[Dict], history: Optional[Li
             return raw_answer
             
         except Exception as e:
+            _remember_unsupported_model(model_name, e)
             logger.error(f"Error calling LLM model '{model_name}': {e}")
 
     return "Sorry, I am currently unable to generate an answer due to an AI service error."
@@ -297,11 +327,14 @@ def generate_grounded_answer(
     )
 
     system_prompt = (
-        "You are FinBot. Answer ONLY from provided context.\n"
-        "If context is insufficient, reply exactly: I could not find enough information in the available documents.\n"
-        "Do not invent policy terms, exclusions, numbers, or legal conditions.\n"
-        "Cite document and page in your answer.\n"
-        "If sources conflict, explicitly mention the conflict.\n"
+        "You are FinBot, an incredibly intelligent, highly conversational, and expert AI finance and insurance assistant.\n"
+        "Your goal is to provide brilliant, easy-to-understand, and highly accurate answers.\n"
+        "Use the provided context as your primary source of truth. If the context contains the answer, base your response on it.\n"
+        "If the context does not contain enough information, you may use your general expertise in finance, banking, and insurance to help the user, but politely clarify that you are drawing from general knowledge.\n"
+        "Write like an intelligent chatbot: clear, direct, and natural. Feel like a smart human expert—friendly, analytical, and articulate.\n"
+        "Do NOT mention document names, page numbers, citations, source labels, or phrases like "
+        "'according to the provided context' in the answer body. The UI already shows sources separately.\n"
+        "CRITICAL RULE: You are strictly a financial, banking, and insurance assistant. If the user asks ANY question unrelated to finance, insurance, taxes, banking, or the provided context (such as coding, general knowledge, jokes, or recipe questions), you MUST politely decline to answer and remind them of your purpose.\n"
         "Keep retrieved evidence as primary context. Chat history and profile are secondary.\n"
     )
     if profile_summary:
@@ -312,7 +345,7 @@ def generate_grounded_answer(
     ) + (
         f"Context:\n{context_text}\n\n"
         f"Question: {query}\n\n"
-        "Provide a grounded answer with concise citations."
+        "Answer naturally and directly. Do not include citations or source references in the answer body."
     )
 
     messages = [{"role": "system", "content": system_prompt}]
@@ -324,10 +357,11 @@ def generate_grounded_answer(
                 model=model_name,
                 messages=messages,
                 max_tokens=500,
-                temperature=0.15,
+                temperature=0.40,
             )
-            return response.choices[0].message.content.strip()
+            return _postprocess_grounded_answer(response.choices[0].message.content.strip())
         except Exception as e:
+            _remember_unsupported_model(model_name, e)
             logger.error(f"Error calling LLM model '{model_name}' for grounded answer: {e}")
 
     return "Sorry, I am currently unable to generate an answer due to an AI service error."

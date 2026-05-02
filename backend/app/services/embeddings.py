@@ -31,4 +31,4 @@ def generate_embeddings(texts: List[str]) -> List[List[float]]:
         return response.tolist() if hasattr(response, 'tolist') else response
     except Exception as e:
         print(f"Error generating embeddings: {e}")
-        return []
+        raise

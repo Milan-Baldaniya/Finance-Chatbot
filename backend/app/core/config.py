@@ -35,7 +35,7 @@ class Settings(BaseSettings):
     rag_retrieval_candidates: int = 15
     rag_top_k: int = 5
     rag_similarity_threshold: float = 0.65
-    enable_hybrid_search: bool = False
+    enable_hybrid_search: bool = True
     enable_reranking: bool = False
 
     model_config = {
