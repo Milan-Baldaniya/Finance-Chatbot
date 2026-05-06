@@ -166,6 +166,19 @@ a {
   }
 }
 
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+    max-height: 0;
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    max-height: 120px;
+  }
+}
+
 .animate-slide-in {
   animation: slideIn 0.35s ease-out forwards;
 }

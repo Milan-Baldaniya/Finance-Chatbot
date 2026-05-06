@@ -17,6 +17,8 @@ function ChatInput({ value, onChange, onSend, isLoading, getAuthToken }: ChatInp
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [attachedFile, setAttachedFile] = useState<{ name: string; content: string } | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [showUploadHint, setShowUploadHint] = useState(false);
+  const hintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (inputRef.current) {
@@ -24,6 +26,19 @@ function ChatInput({ value, onChange, onSend, isLoading, getAuthToken }: ChatInp
       inputRef.current.style.height = `${Math.min(inputRef.current.scrollHeight, 220)}px`;
     }
   }, [value]);
+
+  const openFilePicker = () => {
+    // Show the hint banner, then open file picker
+    setShowUploadHint(true);
+    if (hintTimerRef.current) clearTimeout(hintTimerRef.current);
+    hintTimerRef.current = setTimeout(() => setShowUploadHint(false), 6000);
+    fileInputRef.current?.click();
+  };
+
+  const dismissHint = () => {
+    setShowUploadHint(false);
+    if (hintTimerRef.current) clearTimeout(hintTimerRef.current);
+  };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -48,6 +63,7 @@ function ChatInput({ value, onChange, onSend, isLoading, getAuthToken }: ChatInp
       }
       const data = await res.json();
       setAttachedFile({ name: data.filename, content: data.content });
+      setShowUploadHint(false); // dismiss hint once file is selected
     } catch (error) {
       console.error(error);
       alert("Failed to parse document. Please try a different PDF or Word file.");
@@ -85,6 +101,47 @@ function ChatInput({ value, onChange, onSend, isLoading, getAuthToken }: ChatInp
   return (
     <div className="shrink-0 border-t border-[var(--border-subtle)] bg-white/60 px-4 py-4 md:px-6 md:py-5">
       <div className="mx-auto max-w-4xl">
+        {/* ── Upload limitation hint banner ── */}
+        {showUploadHint && (
+          <div
+            className="mb-3 flex items-start gap-3 rounded-2xl px-4 py-3 text-sm"
+            style={{
+              background: "linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)",
+              border: "1px solid #fcd34d",
+              boxShadow: "0 2px 12px rgba(251,191,36,0.18)",
+              animation: "slideDown 0.25s ease",
+            }}
+          >
+            {/* Warning icon */}
+            <div className="mt-0.5 shrink-0">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" fill="#f59e0b" stroke="#d97706" strokeWidth="1"/>
+                <line x1="12" y1="9" x2="12" y2="13" stroke="white" strokeWidth="2" strokeLinecap="round"/>
+                <circle cx="12" cy="17" r="1" fill="white"/>
+              </svg>
+            </div>
+            {/* Message */}
+            <div className="flex-1">
+              <p className="font-semibold text-amber-800 text-[13px]">Document Upload Limit</p>
+              <p className="text-amber-700 text-[12px] mt-0.5 leading-relaxed">
+                Currently supports up to <strong>~3,000 words (1–2 pages)</strong> due to AI API limits.
+                We are working to increase this. For best results, upload short policy summaries or
+                key sections rather than full documents.
+              </p>
+            </div>
+            {/* Dismiss */}
+            <button
+              onClick={dismissHint}
+              className="shrink-0 mt-0.5 text-amber-500 hover:text-amber-700 transition"
+              aria-label="Dismiss"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
+              </svg>
+            </button>
+          </div>
+        )}
+
         {attachedFile && (
           <div className="mb-3 flex items-center gap-2 rounded-full border border-[var(--border-subtle)] bg-[var(--bg-secondary)] px-3 py-1.5 w-max">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
@@ -98,7 +155,7 @@ function ChatInput({ value, onChange, onSend, isLoading, getAuthToken }: ChatInp
           <div className="surface-card-soft flex items-end gap-3 rounded-[28px] p-3">
             <button
               type="button"
-              onClick={() => fileInputRef.current?.click()}
+              onClick={openFilePicker}
               disabled={isLoading || isUploading}
               className="mb-1 flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full text-[var(--text-muted)] transition hover:bg-black/5 hover:text-[var(--text-primary)] disabled:cursor-not-allowed"
               title="Attach Document (PDF, DOCX, TXT)"
