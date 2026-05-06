@@ -508,19 +508,7 @@ def stream_grounded_answer(
         yield "Sorry, I could not analyse the document right now. Please try again."
         return
 
-    # ── STANDARD RAG MODE ──
-    # ── Conversation history (last 20 messages) ──
-    conversation_context = ""
-    if history:
-        recent = history[-20:]
-        history_lines = [
-            f"{msg['role'].capitalize()}: {msg['content'].strip()}"
-            for msg in recent
-            if msg.get("content")
-        ]
-        if history_lines:
-            conversation_context = "Recent conversation history (secondary context, NOT evidence):\n" + "\n".join(history_lines)
-
+    # history is passed as real chat turns in the messages array below
     # ── RAG evidence ──
     context_text = "\n\n".join(
         (
@@ -562,19 +550,44 @@ def stream_grounded_answer(
 
     system_prompt += f"\n{UNIFIED_RULE_ENGINE_PROMPT}\n"
 
-    # ── User prompt ──
-    user_prompt_parts = []
-    if conversation_context:
-        user_prompt_parts.append(conversation_context)
+    # ── Build first user turn: system context (RAG evidence) ──
+    # The first user message injects evidence + instructions; history follows as real turns
+    first_user_parts = []
     if context_text:
-        user_prompt_parts.append(f"Retrieved evidence (PRIMARY source of truth):\n{context_text}")
-    user_prompt_parts.append(f"Question: {query}")
-    user_prompt_parts.append("Answer naturally and directly. Do not include citations or source references in the answer body.")
+        first_user_parts.append(f"Retrieved evidence (use as primary source of truth):\n{context_text}")
+    first_user_parts.append("Answer naturally and directly. Do not include citations or source references.")
+    first_user_content = "\n\n".join(first_user_parts)
 
-    user_prompt = "\n\n".join(user_prompt_parts)
-
+    # ── Build the messages array with real conversation turns ──
     messages = [{"role": "system", "content": system_prompt}]
-    messages.append({"role": "user", "content": user_prompt})
+
+    if history and len(history) > 1:
+        # Inject a context-setting first user message, then real turns
+        messages.append({"role": "user", "content": first_user_content})
+        messages.append({"role": "assistant", "content": "Understood. I have the context and I'm ready to help."})
+
+        # Add the last N turns as real chat messages (20 pairs = 40 msgs for deep memory)
+        recent_turns = history[-40:]  # 20 user + 20 assistant turns
+        for msg in recent_turns:
+            role = msg.get("role", "")
+            content = (msg.get("content") or "").strip()
+            # Truncate very long messages to keep token budget healthy
+            if len(content) > 600:
+                content = content[:600] + "..."
+            if role in ("user", "assistant") and content:
+                messages.append({"role": role, "content": content})
+
+        # Final current question
+        messages.append({"role": "user", "content": query})
+    else:
+        # No history — single turn with full context in user message
+        user_prompt_parts = []
+        if context_text:
+            user_prompt_parts.append(f"Retrieved evidence (PRIMARY source of truth):\n{context_text}")
+        user_prompt_parts.append(f"Question: {query}")
+        user_prompt_parts.append("Answer naturally and directly. Do not include citations or source references in the answer body.")
+        messages.append({"role": "user", "content": "\n\n".join(user_prompt_parts)})
+
 
     for model_name in _candidate_models():
         try:

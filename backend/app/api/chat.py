@@ -199,7 +199,7 @@ async def chat_stream(request: ChatRequest, user_id: str = Depends(get_current_u
 
     # ── STEP 3: Save ONLY the clean question to DB (never the raw 40k doc body) ──
     save_message(session_id, user_id, "user", raw_question)
-    history = get_recent_messages(session_id, user_id, limit=20)
+    history = get_recent_messages(session_id, user_id, limit=40)
 
     # Always pass profile — the LLM intelligently decides whether to use it
     profile_summary = get_profile_summary(user_id)
