@@ -179,7 +179,7 @@ export default function ChatPage() {
 
   // Send message — streaming via SSE
   const sendMessage = useCallback(async (documentContext?: string, documentName?: string) => {
-    let question = input.trim();
+    const question = input.trim();
     if (!question && !documentContext) return;
     
     // The string that the LLM will see — formatted to match backend regex parser

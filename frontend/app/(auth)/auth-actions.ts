@@ -5,6 +5,23 @@ import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/utils/supabase/server'
 
+const DEFAULT_SITE_URL = 'https://finance-chatbot-ebon.vercel.app'
+
+function getAuthRedirectOrigin(requestOrigin: string | null) {
+  const configuredUrl =
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    process.env.VERCEL_PROJECT_PRODUCTION_URL ||
+    process.env.VERCEL_URL ||
+    requestOrigin ||
+    DEFAULT_SITE_URL
+
+  const origin = configuredUrl.startsWith('http')
+    ? configuredUrl
+    : `https://${configuredUrl}`
+
+  return origin.replace(/\/$/, '')
+}
+
 function authErrorMessage(message: string) {
   const normalized = message.toLowerCase()
 
@@ -60,7 +77,7 @@ export async function signup(formData: FormData) {
     redirect('/sign-up?error=Email and password are required')
   }
 
-  const origin = (await headers()).get('origin') ?? 'https://finance-chatbot-ebon.vercel.app/'
+  const origin = getAuthRedirectOrigin((await headers()).get('origin'))
 
   const { data, error } = await supabase.auth.signUp({
     email,
