@@ -302,6 +302,31 @@ a {
   transform: translateY(-1px);
 }
 
+.auth-switch-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--accent-primary);
+  background: var(--accent-primary);
+  color: #ffffff;
+  font-weight: 700;
+  box-shadow: 0 12px 28px rgba(0, 123, 229, 0.18);
+  transition:
+    background var(--transition-fast),
+    border-color var(--transition-fast),
+    transform var(--transition-fast),
+    box-shadow var(--transition-fast);
+}
+
+.auth-switch-button:hover {
+  background: var(--accent-primary-hover);
+  border-color: var(--accent-primary-hover);
+  box-shadow: 0 14px 32px rgba(0, 123, 229, 0.24);
+  transform: translateY(-1px);
+}
+
 .status-pill {
   display: inline-flex;
   align-items: center;
