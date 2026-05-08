@@ -41,6 +41,17 @@ const profileGoalOptions = [
   { value: 'Commercial Vehicle & Fleet', desc: 'Business and trade vehicle cover' },
 ]
 
+const defaultPrimaryGoals = ['Low Premium + High Cover']
+
+function parsePrimaryGoals(value?: string) {
+  const goals = value
+    ?.split(',')
+    .map((goal) => goal.trim())
+    .filter(Boolean)
+
+  return goals?.length ? goals.slice(0, 3) : defaultPrimaryGoals
+}
+
 interface UserProfile {
   date_of_birth?: string
   gender?: string
@@ -63,10 +74,25 @@ export default function ProfilePage() {
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
   const [hasPreexisting, setHasPreexisting] = useState(false)
-  const [primaryGoal, setPrimaryGoal] = useState('Low Premium + High Cover')
+  const [primaryGoals, setPrimaryGoals] = useState<string[]>(defaultPrimaryGoals)
   const supabaseRef = useRef<ReturnType<typeof createClient> | null>(null)
   const router = useRouter()
-  const isMotorGoal = primaryGoal === 'Motor Insurance'
+  const isMotorGoal =
+    primaryGoals.includes('Motor Insurance') || primaryGoals.includes('Commercial Vehicle & Fleet')
+
+  const handleGoalChange = (goal: string, checked: boolean) => {
+    setPrimaryGoals((currentGoals) => {
+      if (checked) {
+        if (currentGoals.includes(goal) || currentGoals.length >= 3) {
+          return currentGoals
+        }
+
+        return [...currentGoals, goal]
+      }
+
+      return currentGoals.filter((currentGoal) => currentGoal !== goal)
+    })
+  }
 
   const getSupabase = useCallback(() => {
     if (!supabaseRef.current) {
@@ -96,7 +122,7 @@ export default function ProfilePage() {
           const data = await response.json()
           setProfile(data)
           setHasPreexisting(Boolean(data.has_preexisting_conditions))
-          setPrimaryGoal(data.primary_insurance_goal || 'Low Premium + High Cover')
+          setPrimaryGoals(parsePrimaryGoals(data.primary_insurance_goal))
         }
       } catch (error) {
         console.error('Error loading profile:', error)
@@ -124,6 +150,12 @@ export default function ProfilePage() {
     }
 
     const formData = new FormData(form)
+    if (primaryGoals.length === 0) {
+      setMessage('Please select at least one primary insurance goal.')
+      setSaving(false)
+      return
+    }
+
     const payload = {
       date_of_birth: String(formData.get('dateOfBirth') || ''),
       gender: String(formData.get('gender') || ''),
@@ -135,7 +167,7 @@ export default function ProfilePage() {
       preexisting_conditions: hasPreexisting
         ? formData.getAll('preexistingConditions').map(String)
         : [],
-      primary_insurance_goal: primaryGoal,
+      primary_insurance_goal: primaryGoals.join(', '),
       life_stage_dependents: formData.getAll('lifeStageDependents').map(String),
       vehicle_status: isMotorGoal ? String(formData.get('vehicleStatus') || '') : null,
       has_existing_long_term_tp_policy: isMotorGoal
@@ -477,21 +509,32 @@ export default function ProfilePage() {
 
                   <div className="md:col-span-2">
                     <span className="field-label mb-3 block">Primary insurance goal</span>
+                    <span className="field-help mb-3 block">
+                      Select up to 3 goals that best match your current need.
+                    </span>
                     <div className="flex flex-wrap gap-3">
                       {profileGoalOptions.map((goal) => (
                         <label
                           key={goal.value}
-                          data-selected={primaryGoal === goal.value}
-                          className="profile-option-card"
+                          data-selected={primaryGoals.includes(goal.value)}
+                          className={`profile-option-card ${
+                            primaryGoals.length >= 3 && !primaryGoals.includes(goal.value)
+                              ? 'opacity-55'
+                              : ''
+                          }`}
                         >
                           <input
-                            type="radio"
-                            name="primaryGoal"
+                            type="checkbox"
+                            name="primaryGoals"
                             value={goal.value}
-                            checked={primaryGoal === goal.value}
-                            onChange={(e) => setPrimaryGoal(e.target.value)}
+                            checked={primaryGoals.includes(goal.value)}
+                            disabled={
+                              primaryGoals.length >= 3 && !primaryGoals.includes(goal.value)
+                            }
+                            onChange={(event) =>
+                              handleGoalChange(goal.value, event.target.checked)
+                            }
                             className="absolute right-4 top-4 h-4 w-4 accent-[var(--accent-primary)]"
-                            required
                           />
                           <div className="pr-7">
                             <p className="text-sm font-semibold leading-5 text-[var(--text-primary)]">

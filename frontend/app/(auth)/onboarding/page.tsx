@@ -36,12 +36,27 @@ const goalOptions = [
 
 export default function Onboarding() {
   const [hasPreexisting, setHasPreexisting] = useState(false)
-  const [primaryGoal, setPrimaryGoal] = useState('Low Premium + High Cover')
+  const [primaryGoals, setPrimaryGoals] = useState<string[]>(['Low Premium + High Cover'])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState('')
   const supabaseRef = useRef<ReturnType<typeof createClient> | null>(null)
   const router = useRouter()
-  const isMotorGoal = primaryGoal === 'Motor Insurance'
+  const isMotorGoal =
+    primaryGoals.includes('Motor Insurance') || primaryGoals.includes('Commercial Vehicle & Fleet')
+
+  const handleGoalChange = (goal: string, checked: boolean) => {
+    setPrimaryGoals((currentGoals) => {
+      if (checked) {
+        if (currentGoals.includes(goal) || currentGoals.length >= 3) {
+          return currentGoals
+        }
+
+        return [...currentGoals, goal]
+      }
+
+      return currentGoals.filter((currentGoal) => currentGoal !== goal)
+    })
+  }
 
   const getSupabase = useCallback(() => {
     if (!supabaseRef.current) {
@@ -71,6 +86,12 @@ export default function Onboarding() {
       ? formData.getAll('preexistingConditions').map(String)
       : []
 
+    if (primaryGoals.length === 0) {
+      setError('Please select at least one primary insurance goal.')
+      setIsSubmitting(false)
+      return
+    }
+
     const payload = {
       date_of_birth: String(formData.get('dateOfBirth') || ''),
       gender: String(formData.get('gender') || ''),
@@ -80,7 +101,7 @@ export default function Onboarding() {
       is_smoker: formData.get('isSmoker') === 'true',
       has_preexisting_conditions: hasPreexisting,
       preexisting_conditions: preexistingConditions,
-      primary_insurance_goal: primaryGoal,
+      primary_insurance_goal: primaryGoals.join(', '),
       life_stage_dependents: formData.getAll('lifeStageDependents').map(String),
       vehicle_status: isMotorGoal ? String(formData.get('vehicleStatus') || '') : null,
       has_existing_long_term_tp_policy: isMotorGoal
@@ -366,21 +387,32 @@ export default function Onboarding() {
 
                   <div>
                     <span className="field-label mb-3 block">Primary insurance goal</span>
+                    <span className="field-help mb-3 block">
+                      Select up to 3 goals that best match your current need.
+                    </span>
                     <div className="flex flex-wrap gap-3">
                       {goalOptions.map((goal) => (
                         <label
                           key={goal.value}
-                          data-selected={primaryGoal === goal.value}
-                          className="profile-option-card"
+                          data-selected={primaryGoals.includes(goal.value)}
+                          className={`profile-option-card ${
+                            primaryGoals.length >= 3 && !primaryGoals.includes(goal.value)
+                              ? 'opacity-55'
+                              : ''
+                          }`}
                         >
                           <input
-                            type="radio"
-                            name="primaryGoal"
+                            type="checkbox"
+                            name="primaryGoals"
                             value={goal.value}
-                            checked={primaryGoal === goal.value}
-                            onChange={(event) => setPrimaryGoal(event.target.value)}
+                            checked={primaryGoals.includes(goal.value)}
+                            disabled={
+                              primaryGoals.length >= 3 && !primaryGoals.includes(goal.value)
+                            }
+                            onChange={(event) =>
+                              handleGoalChange(goal.value, event.target.checked)
+                            }
                             className="absolute right-4 top-4 h-4 w-4 accent-[var(--accent-primary)]"
-                            required
                           />
                           <div className="pr-7">
                             <p className="text-sm font-semibold leading-5 text-[var(--text-primary)]">
