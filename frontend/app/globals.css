@@ -457,6 +457,30 @@ a {
   box-shadow: 0 0 0 1px var(--accent-primary) inset, 0 8px 24px rgba(0, 123, 229, 0.12);
 }
 
+@media (max-width: 436px) {
+  .choice-chip {
+    width: 100%;
+    min-width: 0;
+    flex-basis: 100%;
+    align-items: flex-start;
+    padding: 0.85rem 0.9rem;
+  }
+
+  .choice-chip span,
+  .choice-chip p,
+  .profile-option-card p {
+    overflow-wrap: anywhere;
+  }
+
+  .profile-option-card {
+    width: 100%;
+    min-width: 0;
+    flex-basis: 100%;
+    min-height: auto;
+    padding: 0.95rem;
+  }
+}
+
 .markdown-body {
   color: var(--text-primary);
 }

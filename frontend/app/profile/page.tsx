@@ -192,7 +192,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="relative min-h-screen overflow-hidden px-4 py-6 md:px-8 md:py-8">
+    <div className="relative min-h-screen overflow-hidden px-3 py-5 min-[437px]:px-4 min-[437px]:py-6 md:px-8 md:py-8">
       <div className="page-orb left-[-3rem] top-12 h-44 w-44 bg-[rgba(0,123,229,0.14)]" />
       <div
         className="page-orb right-[-4rem] top-24 h-72 w-72 bg-[rgba(210,136,66,0.16)]"
@@ -200,10 +200,10 @@ export default function ProfilePage() {
       />
 
       <div className="relative mx-auto max-w-7xl">
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-          <div>
+        <div className="mb-6 flex flex-col items-start justify-between gap-3 min-[437px]:flex-row min-[437px]:flex-wrap min-[437px]:items-center">
+          <div className="min-w-0">
             <p className="section-kicker">Profile settings</p>
-            <h1 className="mt-2 text-3xl font-semibold text-[var(--text-primary)] md:text-4xl">
+            <h1 className="mt-2 text-2xl font-semibold leading-tight text-[var(--text-primary)] min-[437px]:text-3xl md:text-4xl">
               Update your insurance details
             </h1>
 
@@ -212,7 +212,7 @@ export default function ProfilePage() {
           <button
             type="button"
             onClick={() => router.push('/')}
-            className="secondary-button px-5 py-3 text-sm"
+            className="secondary-button w-full px-5 py-3 text-sm min-[437px]:w-auto"
           >
             Back to chat
           </button>
@@ -220,11 +220,11 @@ export default function ProfilePage() {
 
         <div className="grid gap-6 xl:grid-cols-[0.9fr_1.3fr]">
           <aside className="space-y-5 xl:sticky xl:top-8 xl:self-start">
-            <div className="surface-card rounded-[30px] p-6">
+            <div className="surface-card rounded-[24px] p-5 min-[437px]:rounded-[30px] min-[437px]:p-6">
               <div className="flex h-14 w-14 items-center justify-center rounded-[20px] bg-[var(--accent-primary)] text-xl font-bold text-white glow-ring">
                 F
               </div>
-              <h2 className="mt-5 text-2xl font-semibold text-[var(--text-primary)]">
+              <h2 className="mt-5 text-xl font-semibold text-[var(--text-primary)] min-[437px]:text-2xl">
                 Your profile powers safer answers
               </h2>
               <p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">
@@ -234,7 +234,7 @@ export default function ProfilePage() {
               </p>
             </div>
 
-            <div className="surface-card-soft rounded-[28px] p-6">
+            <div className="surface-card-soft rounded-[22px] p-5 min-[437px]:rounded-[28px] min-[437px]:p-6">
               <p className="text-sm font-semibold text-[var(--text-primary)]">
                 Good to know
               </p>
@@ -246,7 +246,7 @@ export default function ProfilePage() {
             </div>
           </aside>
 
-          <form onSubmit={handleSave} className="surface-card rounded-[32px] p-6 md:p-8">
+          <form onSubmit={handleSave} className="surface-card rounded-[24px] p-4 min-[437px]:rounded-[32px] min-[437px]:p-6 md:p-8">
             {message && (
               <div
                 className={`mb-6 rounded-[20px] px-4 py-3 text-sm ${message.includes('successfully')
@@ -259,7 +259,7 @@ export default function ProfilePage() {
             )}
 
             <div className="space-y-6">
-              <section className="surface-card-soft rounded-[28px] p-5 md:p-6">
+              <section className="surface-card-soft rounded-[20px] p-4 min-[437px]:rounded-[28px] min-[437px]:p-5 md:p-6">
                 <div className="mb-5">
                   <p className="section-kicker">Section 1</p>
                   <h3 className="mt-2 text-xl font-semibold text-[var(--text-primary)]">
@@ -332,7 +332,7 @@ export default function ProfilePage() {
                 </div>
               </section>
 
-              <section className="surface-card-soft rounded-[28px] p-5 md:p-6">
+              <section className="surface-card-soft rounded-[20px] p-4 min-[437px]:rounded-[28px] min-[437px]:p-5 md:p-6">
                 <div className="mb-5">
                   <p className="section-kicker">Section 2</p>
                   <h3 className="mt-2 text-xl font-semibold text-[var(--text-primary)]">
@@ -385,7 +385,7 @@ export default function ProfilePage() {
                 </div>
               </section>
 
-              <section className="surface-card-soft rounded-[28px] p-5 md:p-6">
+              <section className="surface-card-soft rounded-[20px] p-4 min-[437px]:rounded-[28px] min-[437px]:p-5 md:p-6">
                 <div className="mb-5">
                   <p className="section-kicker">Section 3</p>
                   <h3 className="mt-2 text-xl font-semibold text-[var(--text-primary)]">
@@ -529,7 +529,7 @@ export default function ProfilePage() {
               </section>
 
               {isMotorGoal && (
-                <section className="surface-card-soft rounded-[28px] p-5 md:p-6">
+                <section className="surface-card-soft rounded-[20px] p-4 min-[437px]:rounded-[28px] min-[437px]:p-5 md:p-6">
                   <div className="mb-5">
                     <p className="section-kicker">Section 4</p>
                     <h3 className="mt-2 text-xl font-semibold text-[var(--text-primary)]">
@@ -587,7 +587,7 @@ export default function ProfilePage() {
               <button
                 type="submit"
                 disabled={saving}
-                className="primary-button px-6 py-3.5 text-sm"
+                className="primary-button w-full px-6 py-3.5 text-sm min-[437px]:w-auto"
               >
                 {saving ? 'Saving changes...' : 'Save profile changes'}
               </button>

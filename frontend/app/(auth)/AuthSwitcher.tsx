@@ -30,13 +30,13 @@ export function AuthSwitcher({
         style={{ animationDelay: '1.2s' }}
       />
 
-      <div className="relative mx-auto flex min-h-[calc(100vh-4rem)] max-w-6xl items-center">
+      <div className="relative mx-auto flex min-h-[calc(100vh-4rem)] max-w-6xl items-start md:items-center">
         <div className="surface-card relative grid w-full overflow-hidden rounded-[34px] bg-white/88 md:min-h-[640px] md:grid-cols-2">
           <div
-            className={`order-2 bg-white/88 px-6 py-10 transition-all duration-700 ease-[cubic-bezier(0.4,0,0.2,1)] md:absolute md:inset-y-0 md:left-0 md:order-none md:flex md:w-1/2 md:items-center md:px-10 md:py-12 ${
+            className={`order-1 overflow-hidden bg-white/88 px-6 transition-all duration-700 ease-[cubic-bezier(0.4,0,0.2,1)] md:absolute md:inset-y-0 md:left-0 md:order-none md:flex md:max-h-none md:w-1/2 md:translate-y-0 md:items-center md:overflow-visible md:px-10 md:py-12 ${
               isSignUp
-                ? 'md:z-20 md:translate-x-full md:opacity-100'
-                : 'md:z-10 md:translate-x-0 md:opacity-0 md:pointer-events-none'
+                ? 'max-h-[820px] translate-y-0 py-10 opacity-100 md:z-20 md:translate-x-full md:opacity-100'
+                : 'max-h-0 -translate-y-6 py-0 opacity-0 pointer-events-none md:z-10 md:translate-x-0 md:opacity-0'
             }`}
           >
             <div className="mx-auto w-full max-w-md">
@@ -125,10 +125,10 @@ export function AuthSwitcher({
           </div>
 
           <div
-            className={`order-2 bg-white/88 px-6 py-10 transition-all duration-700 ease-[cubic-bezier(0.4,0,0.2,1)] md:absolute md:inset-y-0 md:left-0 md:order-none md:flex md:w-1/2 md:items-center md:px-10 md:py-12 ${
+            className={`order-1 overflow-hidden bg-white/88 px-6 transition-all duration-700 ease-[cubic-bezier(0.4,0,0.2,1)] md:absolute md:inset-y-0 md:left-0 md:order-none md:flex md:max-h-none md:w-1/2 md:translate-y-0 md:items-center md:overflow-visible md:px-10 md:py-12 ${
               isSignUp
-                ? 'md:z-10 md:translate-x-full md:opacity-0 md:pointer-events-none'
-                : 'md:z-20 md:translate-x-0 md:opacity-100'
+                ? 'max-h-0 translate-y-6 py-0 opacity-0 pointer-events-none md:z-10 md:translate-x-full md:opacity-0'
+                : 'max-h-[680px] translate-y-0 py-10 opacity-100 md:z-20 md:translate-x-0 md:opacity-100'
             }`}
           >
             <div className="mx-auto w-full max-w-md">
@@ -205,7 +205,7 @@ export function AuthSwitcher({
           </div>
 
           <section
-            className={`order-1 min-h-[360px] overflow-hidden bg-[linear-gradient(145deg,#e9f6ff_0%,#f4fbff_48%,#dcf0ff_100%)] px-8 py-10 transition-transform duration-700 ease-[cubic-bezier(0.4,0,0.2,1)] md:absolute md:inset-y-0 md:left-1/2 md:order-none md:z-30 md:flex md:w-1/2 md:items-center md:px-10 md:py-12 ${
+            className={`order-2 min-h-[340px] overflow-hidden bg-[linear-gradient(145deg,#e9f6ff_0%,#f4fbff_48%,#dcf0ff_100%)] px-6 pb-12 pt-8 transition-transform duration-700 ease-[cubic-bezier(0.4,0,0.2,1)] md:absolute md:inset-y-0 md:left-1/2 md:order-none md:z-30 md:flex md:min-h-[360px] md:w-1/2 md:items-center md:px-10 md:py-12 ${
               isSignUp ? 'md:-translate-x-full' : 'md:translate-x-0'
             }`}
           >
@@ -213,26 +213,26 @@ export function AuthSwitcher({
             <div className="absolute bottom-0 left-0 h-56 w-56 rounded-full bg-[rgba(0,123,229,0.12)] blur-3xl" />
 
             <div className="relative mx-auto w-full max-w-xl">
-              <div className="relative min-h-[280px]">
+              <div className="relative min-h-[285px] md:min-h-[280px]">
                 <div
-                  className={`absolute inset-0 flex flex-col justify-center transition-all duration-700 ${
+                  className={`absolute inset-0 flex flex-col items-center justify-center text-center transition-all duration-700 md:items-start md:text-left ${
                     isSignUp
-                      ? 'translate-x-0 opacity-100'
-                      : 'translate-x-8 opacity-0 pointer-events-none'
+                      ? 'translate-y-0 opacity-100 md:translate-x-0'
+                      : 'translate-y-8 opacity-0 pointer-events-none md:translate-x-8'
                   }`}
                 >
                   <span className="status-pill w-fit">Secure account access</span>
-                  <h1 className="mt-6 text-4xl font-semibold leading-tight text-[var(--text-primary)]">
+                  <h1 className="mt-5 text-3xl font-semibold leading-tight text-[var(--text-primary)] md:mt-6 md:text-4xl">
                     Welcome back to your finance workspace.
                   </h1>
-                  <p className="mt-4 max-w-lg text-base leading-7 text-[var(--text-secondary)]">
+                  <p className="mt-4 max-w-lg text-sm leading-6 text-[var(--text-secondary)] md:text-base md:leading-7">
                     Sign in to continue with saved profile details, conversation history,
                     and grounded insurance guidance.
                   </p>
                   <button
                     suppressHydrationWarning
                     type="button"
-                    className="auth-switch-button mt-8 w-fit px-6 py-3"
+                    className="auth-switch-button mt-7 w-full max-w-[220px] px-6 py-3 md:mt-8 md:w-fit"
                     onClick={() => setMode('sign-in')}
                   >
                     Sign in
@@ -240,24 +240,24 @@ export function AuthSwitcher({
                 </div>
 
                 <div
-                  className={`absolute inset-0 flex flex-col justify-center transition-all duration-700 ${
+                  className={`absolute inset-0 flex flex-col items-center justify-center text-center transition-all duration-700 md:items-start md:text-left ${
                     isSignUp
-                      ? '-translate-x-8 opacity-0 pointer-events-none'
-                      : 'translate-x-0 opacity-100'
+                      ? '-translate-y-8 opacity-0 pointer-events-none md:-translate-x-8'
+                      : 'translate-y-0 opacity-100 md:translate-x-0'
                   }`}
                 >
                   <span className="status-pill w-fit">New account setup</span>
-                  <h1 className="mt-6 text-4xl font-semibold leading-tight text-[var(--text-primary)]">
+                  <h1 className="mt-5 text-3xl font-semibold leading-tight text-[var(--text-primary)] md:mt-6 md:text-4xl">
                     Create your account and start with a cleaner setup.
                   </h1>
-                  <p className="mt-4 max-w-lg text-base leading-7 text-[var(--text-secondary)]">
+                  <p className="mt-4 max-w-lg text-sm leading-6 text-[var(--text-secondary)] md:text-base md:leading-7">
                     After sign up, we will ask a short onboarding form so the chatbot can
                     answer insurance questions more carefully for your situation.
                   </p>
                   <button
                     suppressHydrationWarning
                     type="button"
-                    className="auth-switch-button mt-8 w-fit px-6 py-3"
+                    className="auth-switch-button mt-7 w-full max-w-[220px] px-6 py-3 md:mt-8 md:w-fit"
                     onClick={() => setMode('sign-up')}
                   >
                     Sign up
@@ -265,7 +265,7 @@ export function AuthSwitcher({
                 </div>
               </div>
 
-              <div className="mt-8 grid gap-4 sm:grid-cols-2">
+              <div className="mt-6 hidden gap-4 sm:grid sm:grid-cols-2 md:mt-8">
                 <div className="surface-card-strong rounded-[24px] p-5">
                   <p className="text-sm font-semibold text-[var(--text-primary)]">
                     Personalized answers
