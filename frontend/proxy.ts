@@ -5,6 +5,7 @@ export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname
   const isAuthPage = pathname.startsWith('/sign-in') || pathname.startsWith('/sign-up')
   const isCallbackRoute = pathname.startsWith('/auth/callback')
+  const isConfirmRoute = pathname.startsWith('/auth/confirm')
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
@@ -17,7 +18,7 @@ export async function proxy(request: NextRequest) {
   if (!supabaseUrl || !supabaseAnonKey) {
     console.error('Missing Supabase environment variables in runtime')
 
-    if (isAuthPage || isCallbackRoute) {
+    if (isAuthPage || isCallbackRoute || isConfirmRoute) {
       return response
     }
 
@@ -51,7 +52,7 @@ export async function proxy(request: NextRequest) {
       data: { user },
     } = await supabase.auth.getUser()
 
-    if (!user && !isAuthPage && !isCallbackRoute) {
+    if (!user && !isAuthPage && !isCallbackRoute && !isConfirmRoute) {
       const redirectUrl = request.nextUrl.clone()
       redirectUrl.pathname = '/sign-in'
       return NextResponse.redirect(redirectUrl)
@@ -65,7 +66,7 @@ export async function proxy(request: NextRequest) {
   } catch (error) {
     console.error('Proxy auth check failed', error)
 
-    if (isAuthPage || isCallbackRoute) {
+    if (isAuthPage || isCallbackRoute || isConfirmRoute) {
       return response
     }
 

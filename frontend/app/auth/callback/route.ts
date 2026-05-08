@@ -5,6 +5,7 @@ export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
   const next = searchParams.get('next') ?? '/'
+  const errorDescription = searchParams.get('error_description')
 
   if (code) {
     const supabase = await createClient()
@@ -14,6 +15,9 @@ export async function GET(request: Request) {
     }
   }
 
-  // Return the user to an error page with instructions
-  return NextResponse.redirect(`${origin}/sign-in?error=Could not verify email`)
+  const message = errorDescription
+    ? errorDescription.replace(/\+/g, ' ')
+    : 'Could not verify email. Please request a fresh confirmation link.'
+
+  return NextResponse.redirect(`${origin}/sign-in?error=${encodeURIComponent(message)}`)
 }
