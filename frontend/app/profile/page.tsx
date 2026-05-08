@@ -27,6 +27,20 @@ const goalOptions = [
   { value: 'Motor Insurance', icon: '🚗', desc: 'Vehicle protection & OD cover' },
 ]
 
+const profileGoalOptions = [
+  ...goalOptions.map(({ value, desc }) => ({
+    value,
+    desc: desc.replace(/&/g, 'and'),
+  })),
+  { value: 'Health & Hospitalization', desc: 'Cashless mediclaim coverage' },
+  { value: 'Personal Accident Protection', desc: 'Accidental death and disability cover' },
+  { value: 'Group / Corporate Health', desc: 'Employee health benefits' },
+  { value: 'Maternity & Parenthood', desc: 'Coverage for growing families' },
+  { value: 'OPD & Day-to-Day Care', desc: 'Outpatient and routine health expenses' },
+  { value: 'Chronic & Long-term Illness', desc: 'Ongoing disease management' },
+  { value: 'Commercial Vehicle & Fleet', desc: 'Business and trade vehicle cover' },
+]
+
 interface UserProfile {
   date_of_birth?: string
   gender?: string
@@ -267,7 +281,7 @@ export default function ProfilePage() {
 
                   <div>
                     <span className="field-label">Gender</span>
-                    <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="flex flex-wrap gap-3">
                       {['Male', 'Female'].map((option) => (
                         <label key={option} className="choice-chip cursor-pointer">
                           <input
@@ -288,7 +302,7 @@ export default function ProfilePage() {
 
                   <div className="md:col-span-2">
                     <span className="field-label">Residential status</span>
-                    <div className="grid gap-3 md:grid-cols-2">
+                    <div className="flex flex-wrap gap-3">
                       {['Resident Indian', 'Non-Resident Indian (NRI)'].map((option) => (
                         <label key={option} className="choice-chip cursor-pointer">
                           <input
@@ -329,7 +343,7 @@ export default function ProfilePage() {
                 <div className="grid gap-6">
                   <div>
                     <span className="field-label mb-3 block">Annual income</span>
-                    <div className="grid gap-3 sm:grid-cols-3">
+                    <div className="flex flex-wrap gap-3">
                       {['Below Rs 5 Lakh', 'Rs 5 Lakh - Rs 10 Lakh', 'Above Rs 10 Lakh'].map((option) => (
                         <label key={option} className="choice-chip cursor-pointer">
                           <input
@@ -350,7 +364,7 @@ export default function ProfilePage() {
 
                   <div>
                     <span className="field-label mb-3 block">Occupation type</span>
-                    <div className="grid gap-3 sm:grid-cols-3">
+                    <div className="flex flex-wrap gap-3">
                       {['Salaried', 'Self-Employed', 'Business Owner'].map((option) => (
                         <label key={option} className="choice-chip cursor-pointer">
                           <input
@@ -382,7 +396,7 @@ export default function ProfilePage() {
                 <div className="grid gap-6">
                   <div>
                     <span className="field-label">Tobacco or smoker status</span>
-                    <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="flex flex-wrap gap-3">
                       {[
                         { label: 'No', value: 'false', note: 'Non-smoker context.' },
                         { label: 'Yes', value: 'true', note: 'Useful for premium impact discussions.' },
@@ -442,7 +456,7 @@ export default function ProfilePage() {
                   {hasPreexisting && (
                     <div>
                       <span className="field-label">Select the relevant conditions</span>
-                      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                      <div className="flex flex-wrap gap-3">
                         {conditionOptions.map((condition) => (
                           <label key={condition} className="choice-chip cursor-pointer">
                             <input
@@ -463,15 +477,12 @@ export default function ProfilePage() {
 
                   <div className="md:col-span-2">
                     <span className="field-label mb-3 block">Primary insurance goal</span>
-                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                      {goalOptions.map((goal) => (
+                    <div className="flex flex-wrap gap-3">
+                      {profileGoalOptions.map((goal) => (
                         <label
                           key={goal.value}
-                          className={`relative flex cursor-pointer flex-col gap-2 rounded-xl border p-4 transition-all ${
-                            primaryGoal === goal.value
-                              ? 'border-[var(--accent-primary)] bg-[var(--accent-primary)]/5 shadow-sm'
-                              : 'border-[var(--border-subtle)] bg-white hover:border-[var(--accent-primary)]/30 hover:bg-gray-50/50'
-                          }`}
+                          data-selected={primaryGoal === goal.value}
+                          className="profile-option-card"
                         >
                           <input
                             type="radio"
@@ -482,12 +493,11 @@ export default function ProfilePage() {
                             className="absolute right-4 top-4 h-4 w-4 accent-[var(--accent-primary)]"
                             required
                           />
-                          <div className="text-2xl">{goal.icon}</div>
-                          <div>
-                            <p className="font-semibold text-[var(--text-primary)] text-sm">
+                          <div className="pr-7">
+                            <p className="text-sm font-semibold leading-5 text-[var(--text-primary)]">
                               {goal.value}
                             </p>
-                            <p className="mt-1 text-xs text-[var(--text-secondary)]">
+                            <p className="mt-2 text-xs leading-5 text-[var(--text-secondary)]">
                               {goal.desc}
                             </p>
                           </div>
@@ -498,7 +508,7 @@ export default function ProfilePage() {
 
                   <div>
                     <span className="field-label">Life stage and dependents</span>
-                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                    <div className="flex flex-wrap gap-3">
                       {dependentOptions.map((option) => (
                         <label key={option} className="choice-chip cursor-pointer">
                           <input
@@ -543,7 +553,7 @@ export default function ProfilePage() {
 
                     <div>
                       <span className="field-label">Existing long-term third-party policy</span>
-                      <div className="grid gap-3 sm:grid-cols-2">
+                      <div className="flex flex-wrap gap-3">
                         {[
                           { label: 'No', value: 'false' },
                           { label: 'Yes', value: 'true' },

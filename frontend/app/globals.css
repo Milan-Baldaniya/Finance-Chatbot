@@ -354,6 +354,34 @@ a {
   color: var(--text-primary);
 }
 
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  border-radius: var(--radius-full);
+  border: 1px solid rgba(31, 60, 72, 0.1);
+  background: rgba(255, 255, 255, 0.74);
+  padding: 0.45rem 0.8rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.page-orb {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(12px);
+  pointer-events: none;
+  animation: float 10s ease-in-out infinite;
+}
+
+.section-title {
+  font-size: 1.12rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
 .section-kicker {
   font-size: 0.78rem;
   font-weight: 700;
@@ -365,22 +393,68 @@ a {
 .choice-chip {
   display: flex;
   align-items: center;
-  gap: 0.7rem;
-  border-radius: 18px;
-  border: 1px solid rgba(31, 60, 72, 0.12);
-  background: rgba(255, 255, 255, 0.84);
-  padding: 0.9rem 1rem;
-  transition:
-    border-color var(--transition-fast),
-    background var(--transition-fast),
-    transform var(--transition-fast),
-    box-shadow var(--transition-fast);
+  gap: 0.6rem;
+  border-radius: 14px;
+  border: 1.5px solid rgba(31, 60, 72, 0.1);
+  background: rgba(255, 255, 255, 0.75);
+  padding: 0.8rem 1rem;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+  flex: 1 1 auto;
+  min-width: max-content;
 }
 
 .choice-chip:hover {
+  background: #ffffff;
+  border-color: rgba(0, 123, 229, 0.3);
   transform: translateY(-1px);
-  border-color: rgba(31, 107, 99, 0.18);
-  box-shadow: 0 10px 24px rgba(88, 76, 58, 0.07);
+  box-shadow: 0 6px 16px rgba(0, 123, 229, 0.06);
+}
+
+.choice-chip:has(input:checked) {
+  background: rgba(0, 123, 229, 0.04);
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 1px var(--accent-primary) inset, 0 4px 12px rgba(0, 123, 229, 0.1);
+}
+
+.choice-chip input {
+  flex: 0 0 auto;
+  width: 1.15rem;
+  height: 1.15rem;
+  accent-color: var(--accent-primary);
+  margin: 0;
+  cursor: pointer;
+}
+
+.profile-option-card {
+  position: relative;
+  display: flex;
+  min-height: 100px;
+  cursor: pointer;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 0.5rem;
+  border-radius: 16px;
+  border: 1.5px solid var(--border-subtle);
+  background: rgba(255, 255, 255, 0.75);
+  padding: 1rem 1.15rem;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  flex: 1 1 calc(33% - 1rem);
+  min-width: 220px;
+}
+
+.profile-option-card:hover {
+  border-color: rgba(0, 123, 229, 0.3);
+  background: #ffffff;
+  box-shadow: 0 8px 24px rgba(0, 123, 229, 0.08);
+  transform: translateY(-2px);
+}
+
+.profile-option-card:has(input:checked),
+.profile-option-card[data-selected="true"] {
+  border-color: var(--accent-primary);
+  background: rgba(0, 123, 229, 0.04);
+  box-shadow: 0 0 0 1px var(--accent-primary) inset, 0 8px 24px rgba(0, 123, 229, 0.12);
 }
 
 .markdown-body {

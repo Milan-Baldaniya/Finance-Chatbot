@@ -18,13 +18,20 @@ const conditionOptions = [
 const dependentOptions = ['Single', 'Married', 'Kids', 'Senior Parents']
 
 const goalOptions = [
-  'Low Premium + High Cover',
-  'Guaranteed Returns + Insurance',
-  'Market-Linked Wealth Creation',
-  'Lifelong Income / Retirement',
-  'Tax Saving',
-  'Critical Illness Protection',
-  'Motor Insurance',
+  { value: 'Low Premium + High Cover', desc: 'Pure term life protection' },
+  { value: 'Guaranteed Returns + Insurance', desc: 'Endowment and safe savings' },
+  { value: 'Market-Linked Wealth Creation', desc: 'ULIPs for long-term growth' },
+  { value: 'Lifelong Income / Retirement', desc: 'Annuity and whole life' },
+  { value: 'Tax Saving', desc: 'Maximize 80C and 80D deductions' },
+  { value: 'Critical Illness Protection', desc: 'Coverage for severe diseases' },
+  { value: 'Motor Insurance', desc: 'Vehicle protection and OD cover' },
+  { value: 'Health & Hospitalization', desc: 'Cashless mediclaim coverage' },
+  { value: 'Personal Accident Protection', desc: 'Accidental death and disability cover' },
+  { value: 'Group / Corporate Health', desc: 'Employee health benefits' },
+  { value: 'Maternity & Parenthood', desc: 'Coverage for growing families' },
+  { value: 'OPD & Day-to-Day Care', desc: 'Outpatient and routine health expenses' },
+  { value: 'Chronic & Long-term Illness', desc: 'Ongoing disease management' },
+  { value: 'Commercial Vehicle & Fleet', desc: 'Business and trade vehicle cover' },
 ]
 
 export default function Onboarding() {
@@ -192,7 +199,7 @@ export default function Onboarding() {
 
                   <div>
                     <span className="field-label">Gender</span>
-                    <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="flex flex-wrap gap-3">
                       {['Male', 'Female'].map((option) => (
                         <label key={option} className="choice-chip cursor-pointer">
                           <input
@@ -212,7 +219,7 @@ export default function Onboarding() {
 
                   <div className="md:col-span-2">
                     <span className="field-label">Residential status</span>
-                    <div className="grid gap-3 md:grid-cols-2">
+                    <div className="flex flex-wrap gap-3">
                       {['Resident Indian', 'Non-Resident Indian (NRI)'].map((option) => (
                         <label key={option} className="choice-chip cursor-pointer">
                           <input
@@ -284,7 +291,7 @@ export default function Onboarding() {
                 <div className="grid gap-6">
                   <div>
                     <span className="field-label">Tobacco or smoker status</span>
-                    <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="flex flex-wrap gap-3">
                       {[
                         { label: 'No', value: 'false', note: 'Use standard non-smoker assumptions.' },
                         { label: 'Yes', value: 'true', note: 'Lets chatbot discuss premium impact more carefully.' },
@@ -313,7 +320,7 @@ export default function Onboarding() {
 
                   <div>
                     <span className="field-label">Pre-existing diseases or medical conditions</span>
-                    <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="flex flex-wrap gap-3">
                       {[
                         { label: 'No', value: 'false' },
                         { label: 'Yes', value: 'true' },
@@ -338,8 +345,8 @@ export default function Onboarding() {
 
                   {hasPreexisting && (
                     <div>
-                      <span className="field-label">Select the relevant conditions</span>
-                      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                    <span className="field-label">Select the relevant conditions</span>
+                      <div className="flex flex-wrap gap-3">
                         {conditionOptions.map((condition) => (
                           <label key={condition} className="choice-chip cursor-pointer">
                             <input
@@ -358,27 +365,39 @@ export default function Onboarding() {
                   )}
 
                   <div>
-                    <label className="block">
-                      <span className="field-label">Primary insurance goal</span>
-                      <select
-                        name="primaryGoal"
-                        value={primaryGoal}
-                        onChange={(event) => setPrimaryGoal(event.target.value)}
-                        required
-                        className="app-select"
-                      >
-                        {goalOptions.map((goal) => (
-                          <option key={goal} value={goal}>
-                            {goal}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
+                    <span className="field-label mb-3 block">Primary insurance goal</span>
+                    <div className="flex flex-wrap gap-3">
+                      {goalOptions.map((goal) => (
+                        <label
+                          key={goal.value}
+                          data-selected={primaryGoal === goal.value}
+                          className="profile-option-card"
+                        >
+                          <input
+                            type="radio"
+                            name="primaryGoal"
+                            value={goal.value}
+                            checked={primaryGoal === goal.value}
+                            onChange={(event) => setPrimaryGoal(event.target.value)}
+                            className="absolute right-4 top-4 h-4 w-4 accent-[var(--accent-primary)]"
+                            required
+                          />
+                          <div className="pr-7">
+                            <p className="text-sm font-semibold leading-5 text-[var(--text-primary)]">
+                              {goal.value}
+                            </p>
+                            <p className="mt-2 text-xs leading-5 text-[var(--text-secondary)]">
+                              {goal.desc}
+                            </p>
+                          </div>
+                        </label>
+                      ))}
+                    </div>
                   </div>
 
                   <div>
                     <span className="field-label">Life stage and dependents</span>
-                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                    <div className="flex flex-wrap gap-3">
                       {dependentOptions.map((option) => (
                         <label key={option} className="choice-chip cursor-pointer">
                           <input
@@ -417,7 +436,7 @@ export default function Onboarding() {
 
                     <div>
                       <span className="field-label">Existing long-term third-party policy</span>
-                      <div className="grid gap-3 sm:grid-cols-2">
+                      <div className="flex flex-wrap gap-3">
                         {[
                           { label: 'No', value: 'false' },
                           { label: 'Yes', value: 'true' },
