@@ -3,7 +3,7 @@ User profile persistence and prompt-summary helpers.
 """
 
 from datetime import date
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 from app.core.db import get_db
 from app.schemas.profile import UserProfilePayload
@@ -72,6 +72,25 @@ def get_profile(user_id: str) -> Dict[str, Any] | None:
     return response.data[0]
 
 
+def parse_primary_insurance_goals(value: Any) -> List[str]:
+    """
+    Profiles currently store up to 3 selected goals as a comma-separated string.
+    Keep this tolerant so older rows and future array-shaped values both work.
+    """
+    if not value:
+        return []
+    if isinstance(value, list):
+        return [str(goal).strip() for goal in value if str(goal).strip()]
+    return [goal.strip() for goal in str(value).split(",") if goal.strip()]
+
+
+def get_profile_primary_goals(user_id: str) -> List[str]:
+    profile = get_profile(user_id)
+    if not profile:
+        return []
+    return parse_primary_insurance_goals(profile.get("primary_insurance_goal"))
+
+
 def get_profile_summary(user_id: str) -> str:
     profile = get_profile(user_id)
     if not profile:
@@ -84,7 +103,6 @@ def get_profile_summary(user_id: str) -> str:
         ("Residency", "residential_status"),
         ("Annual income", "annual_income_band"),
         ("Occupation", "occupation_type"),
-        ("Primary goal", "primary_insurance_goal"),
         ("Vehicle status", "vehicle_status"),
     ]
 
@@ -92,6 +110,10 @@ def get_profile_summary(user_id: str) -> str:
         value = profile.get(key)
         if value:
             parts.append(f"{label}: {value}")
+
+    primary_goals = parse_primary_insurance_goals(profile.get("primary_insurance_goal"))
+    if primary_goals:
+        parts.append(f"Selected primary insurance goals ({len(primary_goals)}): {', '.join(primary_goals)}")
 
     exact_age = profile.get("exact_age")
     if exact_age:

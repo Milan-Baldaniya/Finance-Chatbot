@@ -37,6 +37,7 @@ You must strictly enforce the following rules when advising users or evaluating 
 - Tax Benefits: Sec 80C + 10(10D) for Life. Sec 80D for Health/CI (up to ₹25k self/family + ₹50k for senior parents).
 
 2. PRODUCT MATCHING (Goal -> Recommendations):
+- If the profile lists multiple selected primary insurance goals, evaluate and address EACH selected goal. Do not optimize only for the first goal unless the user explicitly asks to prioritize one.
 - Low Premium + High Cover -> Pure Term (e.g., LIC Tech Term, HDFC Life Click 2 Protect Super, Max Life Smart Secure Plus).
 - Guaranteed Returns + Life Cover -> Endowment/Non-Par Savings (e.g., LIC Dhan Rekha, HDFC Life Sanchay Fixed Maturity).
 - Market-Linked Wealth Creation -> ULIPs (e.g., ICICI Pru Signature, HDFC Life ProGrowth Plus, SBI Life Smart Wealth Builder).
@@ -299,6 +300,7 @@ def generate_answer(query: str, context_chunks: List[Dict], history: Optional[Li
         system_prompt += (
             f"\n--- USER PROFILE ---\n{profile_summary}\n"
             "Use this profile as guidance to personalize your answers (e.g., age-appropriate plans, income-suitable products, smoker vs non-smoker premiums). "
+            "If the profile contains multiple selected primary insurance goals, consider all of them together and explain trade-offs across those goals. "
             "But NEVER make final underwriting claims based on profile alone. If the profile is relevant to the question, mention how it applies. "
             "If the profile is irrelevant to the question, ignore it.\n"
         )
@@ -416,7 +418,12 @@ def generate_grounded_answer(
         "- You are strictly a financial/banking/insurance assistant. Politely decline non-finance questions.\n"
     )
     if profile_summary:
-        system_prompt += f"\nUser profile data (use ONLY when the question is about the user themselves):\n{profile_summary}\n"
+        system_prompt += (
+            "\nUser profile data (use ONLY when the question is about the user themselves):\n"
+            f"{profile_summary}\n"
+            "If multiple primary goals are listed, personalize recommendations across ALL selected goals. "
+            "Do not silently drop later goals or answer only for the first selected goal.\n"
+        )
 
     system_prompt += f"\n{UNIFIED_RULE_ENGINE_PROMPT}\n"
 
@@ -546,7 +553,12 @@ def stream_grounded_answer(
         "- You are strictly a financial/banking/insurance assistant. Politely decline non-finance questions.\n"
     )
     if profile_summary:
-        system_prompt += f"\nUser profile data (use ONLY when the question is about the user themselves):\n{profile_summary}\n"
+        system_prompt += (
+            "\nUser profile data (use ONLY when the question is about the user themselves):\n"
+            f"{profile_summary}\n"
+            "If multiple primary goals are listed, personalize recommendations across ALL selected goals. "
+            "Do not silently drop later goals or answer only for the first selected goal.\n"
+        )
 
     system_prompt += f"\n{UNIFIED_RULE_ENGINE_PROMPT}\n"
 

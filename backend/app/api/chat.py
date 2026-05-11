@@ -10,13 +10,50 @@ from app.services.llm import generate_grounded_answer, stream_grounded_answer
 from app.services.retrieval import retrieve_context, confidence_for_chunks
 from app.services.memory import create_session, delete_session, get_all_sessions, get_recent_messages, get_session_history, save_message, session_belongs_to_user
 from app.services.profile import get_profile as fetch_profile
-from app.services.profile import get_profile_summary, upsert_profile
+from app.services.profile import get_profile_primary_goals, get_profile_summary, upsert_profile
 
 router = APIRouter()
 settings = get_settings()
 
 def _chunk_text(chunk: dict) -> str:
     return chunk.get("chunk_text", chunk.get("content", "")) or ""
+
+THIRD_PARTY_TERMS = {
+    "father", "mother", "parent", "parents", "wife", "husband", "spouse",
+    "son", "daughter", "child", "children", "friend", "colleague", "employee",
+    "brother", "sister", "uncle", "aunt", "grandfather", "grandmother",
+}
+
+PERSONAL_ADVICE_TERMS = {
+    "i", "me", "my", "mine", "myself", "we", "our", "us", "suggest",
+    "suggestion", "suggestions", "recommend", "recommendation",
+    "recommendations", "advice", "best", "buy", "choose", "plan", "policy",
+    "cover", "coverage", "premium", "need", "suitable", "should", "goal",
+    "goals",
+}
+
+
+def _should_use_profile_goals_for_retrieval(query: str, history: list[dict]) -> bool:
+    text = " ".join(
+        [query, *[(msg.get("content") or "") for msg in (history or [])[-4:]]]
+    ).lower()
+    words = {word.strip(".,?!:;()[]{}\"'") for word in text.split()}
+
+    if THIRD_PARTY_TERMS.intersection(words):
+        return False
+
+    return bool(PERSONAL_ADVICE_TERMS.intersection(words))
+
+
+def _query_with_profile_goals(query: str, primary_goals: list[str], history: list[dict]) -> str:
+    if not primary_goals or not _should_use_profile_goals_for_retrieval(query, history):
+        return query
+    goal_context = "; ".join(primary_goals)
+    return (
+        f"{query}\n\n"
+        f"User selected primary insurance goals for personalization: {goal_context}. "
+        "Retrieve context relevant to every selected goal, not only the first one."
+    )
 
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
 import io
@@ -81,9 +118,11 @@ async def chat(request: ChatRequest, user_id: str = Depends(get_current_user_id)
     
     # Always pass profile — the LLM intelligently decides whether to use it
     profile_summary = get_profile_summary(user_id)
+    primary_goals = get_profile_primary_goals(user_id)
     
     try:
-        retrieval = retrieve_context(request.question, history)
+        retrieval_query = _query_with_profile_goals(request.question, primary_goals, history)
+        retrieval = retrieve_context(retrieval_query, history)
         top_chunks = retrieval["final_chunks"]
         confidence = confidence_for_chunks(top_chunks)
 
@@ -203,6 +242,7 @@ async def chat_stream(request: ChatRequest, user_id: str = Depends(get_current_u
 
     # Always pass profile — the LLM intelligently decides whether to use it
     profile_summary = get_profile_summary(user_id)
+    primary_goals = get_profile_primary_goals(user_id)
 
     # When a document is uploaded, skip RAG retrieval entirely — the doc IS the context
     if adhoc_chunk:
@@ -211,7 +251,8 @@ async def chat_stream(request: ChatRequest, user_id: str = Depends(get_current_u
     else:
         # Run retrieval synchronously before streaming
         try:
-            retrieval = retrieve_context(raw_question, history)
+            retrieval_query = _query_with_profile_goals(raw_question, primary_goals, history)
+            retrieval = retrieve_context(retrieval_query, history)
             top_chunks = retrieval["final_chunks"]
             confidence = confidence_for_chunks(top_chunks)
 
