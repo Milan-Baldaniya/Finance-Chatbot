@@ -248,34 +248,7 @@ export default function ProfilePage() {
           </button>
         </div>
 
-        <div className="grid gap-6 xl:grid-cols-[0.9fr_1.3fr]">
-          <aside className="space-y-5 xl:sticky xl:top-8 xl:self-start">
-            <div className="surface-card rounded-[24px] p-5 min-[437px]:rounded-[30px] min-[437px]:p-6">
-              <div className="flex h-14 w-14 items-center justify-center rounded-[20px] bg-[var(--accent-primary)] text-xl font-bold text-white glow-ring">
-                F
-              </div>
-              <h2 className="mt-5 text-xl font-semibold text-[var(--text-primary)] min-[437px]:text-2xl">
-                Your profile powers safer answers
-              </h2>
-              <p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">
-                Updated details help with age-sensitive plans, NRI handling,
-                smoking-related premium context, dependents, and health-related
-                waiting period discussions.
-              </p>
-            </div>
-
-            <div className="surface-card-soft rounded-[22px] p-5 min-[437px]:rounded-[28px] min-[437px]:p-6">
-              <p className="text-sm font-semibold text-[var(--text-primary)]">
-                Good to know
-              </p>
-              <ul className="mt-4 space-y-3 text-sm leading-6 text-[var(--text-secondary)]">
-
-                <li>Document retrieval and citations still stay central to the answer flow.</li>
-                <li>You can return to chat immediately after saving.</li>
-              </ul>
-            </div>
-          </aside>
-
+        <div>
           <form onSubmit={handleSave} className="surface-card rounded-[24px] p-4 min-[437px]:rounded-[32px] min-[437px]:p-6 md:p-8">
             {message && (
               <div
