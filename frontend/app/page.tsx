@@ -9,6 +9,7 @@ import MessageBubble, { type Message } from "./components/MessageBubble";
 import ChatInput from "./components/ChatInput";
 import WelcomeScreen from "./components/WelcomeScreen";
 import ThinkingIndicator from "./components/LoadingDots";
+import LottieLoader from "./components/LottieLoader";
 
 interface Session {
   session_id: string;
@@ -323,15 +324,12 @@ export default function ChatPage() {
   // Loading screen
   if (checkingAuth) {
     return (
-      <div className="flex min-h-screen items-center justify-center px-6">
-        <div className="surface-card flex w-full max-w-sm flex-col items-center gap-4 rounded-[30px] p-10 text-center">
-          <div className="h-10 w-10 rounded-full border-2 border-[var(--accent-primary)] border-t-transparent animate-spin" />
-          <div>
-            <p className="text-base font-semibold text-[var(--text-primary)]">Preparing your workspace</p>
-            <p className="mt-1 text-sm text-[var(--text-secondary)]">Checking your account and loading saved conversations.</p>
-          </div>
-        </div>
-      </div>
+      <LottieLoader
+        fullScreen
+        size={220}
+        message="Preparing your workspace"
+        subMessage="Checking your account and loading saved conversations."
+      />
     );
   }
 

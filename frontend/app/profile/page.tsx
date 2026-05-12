@@ -3,6 +3,7 @@
 import { FormEvent, useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/utils/supabase/client'
+import LottieLoader from '../components/LottieLoader'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'
 
@@ -211,15 +212,12 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center px-6">
-        <div className="surface-card flex w-full max-w-sm flex-col items-center gap-4 rounded-[30px] p-10 text-center">
-          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[var(--accent-primary)] text-xl font-bold text-white">
-            F
-          </div>
-          <div className="h-10 w-10 rounded-full border-2 border-[var(--accent-primary)] border-t-transparent animate-spin" />
-          <p className="text-sm text-[var(--text-secondary)]">Loading your saved profile...</p>
-        </div>
-      </div>
+      <LottieLoader
+        fullScreen
+        size={220}
+        message="Loading your profile"
+        subMessage="Loading your saved profile..."
+      />
     )
   }
 

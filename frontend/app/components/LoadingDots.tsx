@@ -1,6 +1,8 @@
 "use client";
 
 import { memo, useEffect, useRef, useState } from "react";
+import Lottie from "lottie-react";
+import loaderAnimation from "../../public/t5d42NEZJZ.json";
 
 const STAGES = [
   { text: "Understanding your question", icon: "💭", duration: 2500 },
@@ -50,13 +52,9 @@ function ThinkingIndicator() {
         {/* Status row */}
         <div className="pl-9">
           <div className="flex items-center gap-3">
-            {/* Spinner */}
-            <div className="relative h-[18px] w-[18px] shrink-0">
-              <div
-                className="absolute inset-0 rounded-full border-2 border-transparent border-t-[var(--accent-primary)] animate-spin"
-                style={{ animationDuration: "700ms" }}
-              />
-              <div className="absolute inset-0 rounded-full border-2 border-[var(--accent-primary)] opacity-15" />
+            {/* Lottie loader replacing old CSS spinner */}
+            <div className="relative shrink-0" style={{ width: 36, height: 36 }}>
+              <Lottie animationData={loaderAnimation} loop className="w-full h-full" />
             </div>
 
             {/* Stage text + trailing dots — all on the same baseline */}
