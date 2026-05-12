@@ -10,7 +10,7 @@ from app.services.llm import generate_grounded_answer, stream_grounded_answer
 from app.services.retrieval import retrieve_context, confidence_for_chunks
 from app.services.memory import create_session, delete_session, get_all_sessions, get_recent_messages, get_session_history, save_message, session_belongs_to_user
 from app.services.profile import get_profile as fetch_profile
-from app.services.profile import get_profile_primary_goals, get_profile_summary, upsert_profile
+from app.services.profile import build_profile_suggestions, get_profile_primary_goals, get_profile_summary, upsert_profile
 
 router = APIRouter()
 settings = get_settings()
@@ -393,6 +393,12 @@ async def get_profile_endpoint(user_id: str = Depends(get_current_user_id)):
         return profile
     except Exception:
         return {"onboarding_completed": False}
+
+
+@router.get("/api/profile/suggestions")
+async def get_profile_suggestions_endpoint(user_id: str = Depends(get_current_user_id)):
+    """Return fast profile-aware starter questions for a new chat."""
+    return {"suggestions": build_profile_suggestions(fetch_profile(user_id))}
 
 
 @router.post("/api/profile/onboarding")

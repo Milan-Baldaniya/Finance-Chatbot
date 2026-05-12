@@ -2,7 +2,7 @@
 
 import { memo } from "react";
 
-const SUGGESTIONS = [
+const DEFAULT_SUGGESTIONS = [
   "What compliances are required before buying term insurance?",
   "What is the role of IRDAI?",
   "Explain KYC and underwriting.",
@@ -10,10 +10,14 @@ const SUGGESTIONS = [
 ];
 
 interface WelcomeScreenProps {
+  suggestions?: string[];
+  isLoadingSuggestions?: boolean;
   onSend: (text: string) => void;
 }
 
-function WelcomeScreen({ onSend }: WelcomeScreenProps) {
+function WelcomeScreen({ suggestions, isLoadingSuggestions = false, onSend }: WelcomeScreenProps) {
+  const displaySuggestions = suggestions?.length ? suggestions : DEFAULT_SUGGESTIONS;
+
   return (
     <div className="mx-auto flex h-full w-full max-w-3xl flex-col items-center justify-center py-4 text-center">
       <h3 className="text-3xl font-semibold text-[var(--text-primary)] md:text-4xl">
@@ -24,8 +28,23 @@ function WelcomeScreen({ onSend }: WelcomeScreenProps) {
       </p>
 
       <div className="mt-8 w-full">
+        {isLoadingSuggestions ? (
+          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-secondary)]">
+            Personalizing suggestions...
+          </p>
+        ) : null}
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-          {SUGGESTIONS.map((suggestion, i) => (
+          {isLoadingSuggestions && !suggestions?.length
+            ? Array.from({ length: 4 }).map((_, i) => (
+              <div
+                key={i}
+                className="surface-card-strong min-h-[110px] rounded-[24px] p-5"
+              >
+                <div className="h-4 w-4/5 animate-pulse rounded-full bg-[rgba(95,111,118,0.16)]" />
+                <div className="mt-4 h-4 w-2/3 animate-pulse rounded-full bg-[rgba(95,111,118,0.12)]" />
+              </div>
+            ))
+            : displaySuggestions.map((suggestion, i) => (
             <button
               key={i}
               type="button"

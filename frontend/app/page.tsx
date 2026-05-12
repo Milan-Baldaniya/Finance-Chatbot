@@ -50,6 +50,8 @@ export default function ChatPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [sessions, setSessions] = useState<Session[]>([]);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isDesktopSidebarOpen, setIsDesktopSidebarOpen] = useState(true);
   const [deletingSessionId, setDeletingSessionId] = useState<string | null>(null);
@@ -86,6 +88,30 @@ export default function ChatPage() {
     }
   }, [getAuthToken]);
 
+  const fetchSuggestions = useCallback(async () => {
+    setIsLoadingSuggestions(true);
+    const token = await getAuthToken();
+    if (!token) {
+      setIsLoadingSuggestions(false);
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_BASE}/api/profile/suggestions`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (Array.isArray(data.suggestions)) {
+        setSuggestions(data.suggestions.filter((item: unknown) => typeof item === "string" && item.trim()));
+      }
+    } catch (e) {
+      console.error("Failed to load profile suggestions", e);
+    } finally {
+      setIsLoadingSuggestions(false);
+    }
+  }, [getAuthToken]);
+
   // Auth init
   useEffect(() => {
     const init = async () => {
@@ -106,9 +132,10 @@ export default function ChatPage() {
       }
       setCheckingAuth(false);
       fetchSessions();
+      fetchSuggestions();
     };
     init();
-  }, [fetchSessions, getAuthToken, getSupabase, router]);
+  }, [fetchSessions, fetchSuggestions, getAuthToken, getSupabase, router]);
 
   // Auto-scroll
   useEffect(() => {
@@ -179,8 +206,8 @@ export default function ChatPage() {
   }, [isLoading]);
 
   // Send message — streaming via SSE
-  const sendMessage = useCallback(async (documentContext?: string, documentName?: string) => {
-    const question = input.trim();
+  const sendMessage = useCallback(async (documentContext?: string, documentName?: string, suggestedQuestion?: string) => {
+    const question = (suggestedQuestion ?? input).trim();
     if (!question && !documentContext) return;
     
     // The string that the LLM will see — formatted to match backend regex parser
@@ -238,7 +265,14 @@ export default function ChatPage() {
         body: JSON.stringify({ question: apiQuestion, session_id: sessionId }),
       });
 
-      if (!res.ok || !res.body) throw new Error("Stream request failed");
+      if (!res.ok || !res.body) {
+        const errorPayload = await res.json().catch(() => null);
+        const detail = errorPayload?.detail;
+        const message = Array.isArray(detail)
+          ? detail.map((item) => item.msg || JSON.stringify(item)).join(" ")
+          : detail || "Stream request failed";
+        throw new Error(message);
+      }
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
@@ -292,7 +326,11 @@ export default function ChatPage() {
           }
         }
       }
-    } catch {
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error && error.message
+          ? error.message
+          : "I could not reach the backend right now. Please check that the API server is running and try again.";
       setMessages((prev) =>
         prev.map((m) =>
           m.id === botMsgId
@@ -300,7 +338,7 @@ export default function ChatPage() {
                 ...m,
                 content:
                   m.content ||
-                  "I could not reach the backend right now. Please check that the API server is running and try again.",
+                  errorMessage,
               }
             : m
         )
@@ -414,7 +452,11 @@ export default function ChatPage() {
             {/* Messages */}
             <main className={`min-h-0 flex-1 px-4 pb-4 pt-5 md:px-6 ${messages.length === 0 ? "overflow-hidden" : "overflow-y-auto"}`}>
               {messages.length === 0 ? (
-                <WelcomeScreen onSend={sendMessage} />
+                <WelcomeScreen
+                  suggestions={suggestions}
+                  isLoadingSuggestions={isLoadingSuggestions}
+                  onSend={(question) => sendMessage(undefined, undefined, question)}
+                />
               ) : (
                 <div className="mx-auto flex w-full max-w-4xl flex-col gap-8 pb-6">
                   {messages.map((msg) => {

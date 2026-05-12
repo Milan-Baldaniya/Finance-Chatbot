@@ -11,7 +11,7 @@ from datetime import datetime
 
 class ChatRequest(BaseModel):
     """Incoming chat question from the user."""
-    question: str = Field(..., min_length=1, max_length=2000, description="The user's question")
+    question: str = Field(..., min_length=1, max_length=50000, description="The user's question or attached-document context")
     session_id: Optional[str] = Field(None, description="Optional session ID for conversation continuity")
 
 
