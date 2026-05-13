@@ -3,20 +3,19 @@
 import { memo, useEffect, useRef, useState } from "react";
 
 const STAGES = [
-  { text: "Understanding your question", duration: 2500 },
-  { text: "Searching knowledge base",    duration: 3500 },
-  { text: "Analyzing relevant documents", duration: 4000 },
-  { text: "Preparing your answer",        duration: 0 },
+  { text: "Understanding your question", icon: "💭", duration: 2500 },
+  { text: "Searching knowledge base",    icon: "🔍", duration: 3500 },
+  { text: "Analyzing relevant documents", icon: "📄", duration: 4000 },
+  { text: "Preparing your answer",        icon: "✍️", duration: 0 },
 ];
 
 function ThinkingIndicator() {
   const [stage, setStage] = useState(0);
-  const [isVisible, setIsVisible] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   useEffect(() => {
-    // Entrance animation
-    requestAnimationFrame(() => setIsVisible(true));
+    requestAnimationFrame(() => setMounted(true));
 
     let elapsed = 0;
     for (let i = 1; i < STAGES.length; i++) {
@@ -25,7 +24,6 @@ function ThinkingIndicator() {
       elapsed += prevDuration;
       timersRef.current.push(setTimeout(() => setStage(i), elapsed));
     }
-
     return () => timersRef.current.forEach(clearTimeout);
   }, []);
 
@@ -33,186 +31,278 @@ function ThinkingIndicator() {
 
   return (
     <div
-      className={`transition-all duration-500 ease-out ${
-        isVisible
-          ? "opacity-100 translate-y-0"
-          : "opacity-0 translate-y-3"
+      className={`mx-auto w-full max-w-4xl transition-all duration-400 ease-out ${
+        mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"
       }`}
     >
-      <div className="mx-auto w-full max-w-4xl">
-        <div
-          className="relative overflow-hidden rounded-2xl border border-[var(--border-subtle)]"
-          style={{
-            background:
-              "linear-gradient(135deg, rgba(255,255,255,0.85) 0%, rgba(248,250,252,0.9) 100%)",
-            backdropFilter: "blur(12px)",
-            boxShadow:
-              "0 1px 3px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.03)",
-          }}
-        >
-          {/* Top shimmer accent line */}
-          <div className="absolute top-0 left-0 right-0 h-[2px] overflow-hidden">
-            <div
-              className="h-full w-[200%] animate-[shimmer_2s_ease-in-out_infinite]"
-              style={{
-                background:
-                  "linear-gradient(90deg, transparent, var(--accent-primary), rgba(99,145,255,0.6), var(--accent-primary), transparent)",
-              }}
-            />
+      {/* Compact inline card */}
+      <div className="thinking-card">
+        {/* Animated gradient border */}
+        <div className="thinking-border" />
+
+        <div className="thinking-inner">
+          {/* Left: stage icon with pulse ring */}
+          <div className="thinking-icon-wrap">
+            <div className="thinking-icon-ring" />
+            <span className="thinking-icon-emoji">{STAGES[stage].icon}</span>
           </div>
 
-          <div className="px-5 py-4 flex items-center gap-4">
-            {/* Animated orb */}
-            <div className="relative flex-shrink-0 w-10 h-10">
-              {/* Outer glow ring */}
-              <div
-                className="absolute inset-0 rounded-full animate-[orbPulse_2.4s_ease-in-out_infinite]"
-                style={{
-                  background:
-                    "radial-gradient(circle, rgba(var(--accent-primary-rgb, 0,123,229), 0.15) 0%, transparent 70%)",
-                }}
-              />
-              {/* Middle ring */}
-              <div
-                className="absolute inset-[6px] rounded-full animate-[orbSpin_3s_linear_infinite]"
-                style={{
-                  border: "2px solid transparent",
-                  borderTopColor: "var(--accent-primary)",
-                  borderRightColor: "rgba(var(--accent-primary-rgb, 0,123,229), 0.3)",
-                }}
-              />
-              {/* Inner core */}
-              <div
-                className="absolute inset-[12px] rounded-full animate-[orbPulse_1.8s_ease-in-out_infinite_0.3s]"
-                style={{
-                  background:
-                    "linear-gradient(135deg, var(--accent-primary), rgba(99,145,255,0.9))",
-                  boxShadow: "0 0 12px rgba(var(--accent-primary-rgb, 0,123,229), 0.4)",
-                }}
-              />
-            </div>
-
-            {/* Content */}
-            <div className="flex-1 min-w-0">
-              {/* Stage text with crossfade */}
-              <div className="relative h-5 overflow-hidden">
-                {STAGES.map((s, i) => (
-                  <span
-                    key={i}
-                    className="absolute left-0 top-0 whitespace-nowrap text-[13.5px] font-medium transition-all duration-500 ease-out"
-                    style={{
-                      color: "var(--text-primary)",
-                      opacity: i === stage ? 1 : 0,
-                      transform: `translateY(${
-                        i === stage ? "0" : i < stage ? "-100%" : "100%"
-                      })`,
-                    }}
-                  >
-                    {s.text}
-                  </span>
-                ))}
-              </div>
-
-              {/* Progress track */}
-              <div className="mt-2.5 flex items-center gap-3">
-                <div
-                  className="flex-1 h-[3px] rounded-full overflow-hidden"
-                  style={{ backgroundColor: "var(--border-subtle)" }}
-                >
-                  <div
-                    className="h-full rounded-full transition-all duration-700 ease-out relative overflow-hidden"
-                    style={{
-                      width: `${progress}%`,
-                      background:
-                        "linear-gradient(90deg, var(--accent-primary), rgba(99,145,255,0.85))",
-                    }}
-                  >
-                    {/* Gloss shimmer on the bar */}
-                    <div
-                      className="absolute inset-0 animate-[barShimmer_1.5s_ease-in-out_infinite]"
-                      style={{
-                        background:
-                          "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.5) 50%, transparent 100%)",
-                      }}
-                    />
-                  </div>
-                </div>
-                <span
-                  className="text-[11px] font-semibold tabular-nums tracking-wide transition-all duration-500"
-                  style={{ color: "var(--text-muted)" }}
-                >
-                  {stage + 1}/{STAGES.length}
-                </span>
-              </div>
-            </div>
-
-            {/* Trailing animated dots */}
-            <div className="flex-shrink-0 flex items-center gap-[5px] pl-1">
-              {[0, 1, 2].map((i) => (
+          {/* Center: text + progress */}
+          <div className="thinking-content">
+            {/* Crossfade text */}
+            <div className="thinking-text-track">
+              {STAGES.map((s, i) => (
                 <span
                   key={i}
-                  className="block rounded-full animate-[dotBounce_1.4s_ease-in-out_infinite]"
+                  className="thinking-text-item"
+                  data-active={i === stage}
                   style={{
-                    width: 5,
-                    height: 5,
-                    backgroundColor: "var(--accent-primary)",
-                    opacity: 0.7,
-                    animationDelay: `${i * 160}ms`,
+                    transform: `translateY(${i === stage ? "0" : i < stage ? "-110%" : "110%"})`,
+                    opacity: i === stage ? 1 : 0,
                   }}
+                >
+                  {s.text}
+                </span>
+              ))}
+            </div>
+
+            {/* Progress rail */}
+            <div className="thinking-rail">
+              {/* Filled portion */}
+              <div className="thinking-fill" style={{ width: `${progress}%` }}>
+                <div className="thinking-fill-shimmer" />
+              </div>
+
+              {/* Step dots on the rail */}
+              {STAGES.map((_, i) => (
+                <div
+                  key={i}
+                  className="thinking-step-dot"
+                  data-reached={i <= stage}
+                  style={{ left: `${((i + 0.5) / STAGES.length) * 100}%` }}
                 />
               ))}
             </div>
           </div>
+
+          {/* Right: bouncing dots */}
+          <div className="thinking-dots">
+            <span className="thinking-dot" style={{ animationDelay: "0ms" }} />
+            <span className="thinking-dot" style={{ animationDelay: "150ms" }} />
+            <span className="thinking-dot" style={{ animationDelay: "300ms" }} />
+          </div>
         </div>
       </div>
 
-      {/* Keyframes */}
       <style jsx>{`
-        @keyframes shimmer {
-          0% {
-            transform: translateX(-50%);
-          }
+        .thinking-card {
+          position: relative;
+          border-radius: 14px;
+          padding: 1.5px;
+          background: linear-gradient(
+            135deg,
+            var(--accent-primary),
+            rgba(99, 145, 255, 0.5),
+            rgba(180, 200, 255, 0.3),
+            var(--accent-primary)
+          );
+          background-size: 300% 300%;
+          animation: borderGlow 4s ease infinite;
+        }
+
+        .thinking-inner {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          padding: 10px 14px;
+          border-radius: 12.5px;
+          background: linear-gradient(
+            135deg,
+            rgba(255, 255, 255, 0.95) 0%,
+            rgba(248, 250, 255, 0.97) 100%
+          );
+          backdrop-filter: blur(8px);
+        }
+
+        /* ── Icon ── */
+        .thinking-icon-wrap {
+          position: relative;
+          flex-shrink: 0;
+          width: 32px;
+          height: 32px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .thinking-icon-ring {
+          position: absolute;
+          inset: 0;
+          border-radius: 50%;
+          border: 1.5px solid var(--accent-primary);
+          opacity: 0.3;
+          animation: ringPulse 2s ease-in-out infinite;
+        }
+
+        .thinking-icon-emoji {
+          position: relative;
+          font-size: 15px;
+          line-height: 1;
+          animation: iconPop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+        }
+
+        /* ── Text ── */
+        .thinking-content {
+          flex: 1;
+          min-width: 0;
+        }
+
+        .thinking-text-track {
+          position: relative;
+          height: 18px;
+          overflow: hidden;
+          margin-bottom: 7px;
+        }
+
+        .thinking-text-item {
+          position: absolute;
+          left: 0;
+          top: 0;
+          white-space: nowrap;
+          font-size: 12.5px;
+          font-weight: 600;
+          letter-spacing: 0.01em;
+          color: var(--text-primary);
+          transition: all 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* ── Progress rail ── */
+        .thinking-rail {
+          position: relative;
+          height: 3px;
+          border-radius: 3px;
+          background: var(--border-subtle);
+          overflow: visible;
+        }
+
+        .thinking-fill {
+          position: absolute;
+          top: 0;
+          left: 0;
+          height: 100%;
+          border-radius: 3px;
+          overflow: hidden;
+          transition: width 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+          background: linear-gradient(
+            90deg,
+            var(--accent-primary) 0%,
+            rgba(99, 145, 255, 0.85) 100%
+          );
+        }
+
+        .thinking-fill-shimmer {
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(
+            90deg,
+            transparent 0%,
+            rgba(255, 255, 255, 0.55) 50%,
+            transparent 100%
+          );
+          animation: shimmerSlide 1.2s ease-in-out infinite;
+        }
+
+        /* Step dots */
+        .thinking-step-dot {
+          position: absolute;
+          top: 50%;
+          width: 7px;
+          height: 7px;
+          border-radius: 50%;
+          transform: translate(-50%, -50%) scale(0.7);
+          background: var(--border-subtle);
+          border: 1.5px solid rgba(255, 255, 255, 0.9);
+          transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+          z-index: 2;
+        }
+
+        .thinking-step-dot[data-reached="true"] {
+          background: var(--accent-primary);
+          transform: translate(-50%, -50%) scale(1);
+          box-shadow: 0 0 6px rgba(var(--accent-primary-rgb, 0, 123, 229), 0.45);
+        }
+
+        /* ── Trailing dots ── */
+        .thinking-dots {
+          flex-shrink: 0;
+          display: flex;
+          align-items: center;
+          gap: 3px;
+          padding-left: 2px;
+        }
+
+        .thinking-dot {
+          display: block;
+          width: 4px;
+          height: 4px;
+          border-radius: 50%;
+          background: var(--accent-primary);
+          animation: dotWave 1.4s ease-in-out infinite;
+        }
+
+        /* ─── Keyframes ─── */
+        @keyframes borderGlow {
+          0%,
           100% {
-            transform: translateX(0%);
+            background-position: 0% 50%;
+          }
+          50% {
+            background-position: 100% 50%;
           }
         }
-        @keyframes orbPulse {
+
+        @keyframes ringPulse {
           0%,
           100% {
             transform: scale(1);
-            opacity: 0.8;
+            opacity: 0.25;
           }
           50% {
-            transform: scale(1.15);
-            opacity: 1;
+            transform: scale(1.25);
+            opacity: 0.5;
           }
         }
-        @keyframes orbSpin {
-          from {
-            transform: rotate(0deg);
+
+        @keyframes iconPop {
+          0% {
+            transform: scale(0.5);
+            opacity: 0;
           }
-          to {
-            transform: rotate(360deg);
-          }
-        }
-        @keyframes dotBounce {
-          0%,
-          80%,
           100% {
-            transform: translateY(0);
-            opacity: 0.4;
-          }
-          40% {
-            transform: translateY(-5px);
+            transform: scale(1);
             opacity: 1;
           }
         }
-        @keyframes barShimmer {
+
+        @keyframes shimmerSlide {
           0% {
             transform: translateX(-100%);
           }
           100% {
             transform: translateX(100%);
+          }
+        }
+
+        @keyframes dotWave {
+          0%,
+          80%,
+          100% {
+            transform: translateY(0);
+            opacity: 0.35;
+          }
+          40% {
+            transform: translateY(-4px);
+            opacity: 1;
           }
         }
       `}</style>
