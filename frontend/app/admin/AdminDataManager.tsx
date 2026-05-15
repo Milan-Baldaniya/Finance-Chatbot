@@ -1,7 +1,95 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
+
+/* ─── Searchable FK Dropdown ─── */
+function SearchableSelect({ name, options, value, required, placeholder }: {
+  name: string;
+  options: { id: string; label: string }[];
+  value: string;
+  required?: boolean;
+  placeholder: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const [selected, setSelected] = useState(value);
+  const ref = useRef<HTMLDivElement>(null);
+
+  const filtered = useMemo(() => {
+    if (!search.trim()) return options;
+    const q = search.toLowerCase();
+    return options.filter((o) => o.label.toLowerCase().includes(q));
+  }, [options, search]);
+
+  const selectedLabel = options.find((o) => o.id === selected)?.label;
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  return (
+    <div ref={ref} className="relative">
+      <input type="hidden" name={name} value={selected} />
+      <button
+        type="button"
+        onClick={() => { setOpen(!open); setSearch(""); }}
+        className={`app-input w-full text-left flex items-center justify-between gap-2 transition-all ${open ? "ring-2 ring-blue-400/50 border-blue-400" : ""}`}
+      >
+        <span className={selectedLabel ? "text-slate-800" : "text-slate-400"}>
+          {selectedLabel || placeholder}
+        </span>
+        <svg className={`w-4 h-4 text-slate-400 shrink-0 transition-transform duration-200 ${open ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7"/></svg>
+      </button>
+      {open && (
+        <div className="absolute z-50 mt-1.5 w-full rounded-[14px] border border-slate-200 bg-white shadow-xl shadow-slate-200/50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150">
+          <div className="p-2 border-b border-slate-100">
+            <div className="relative">
+              <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+              <input
+                autoFocus
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full rounded-lg border border-slate-200 bg-slate-50/80 py-2 pl-8 pr-3 text-sm outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400/30 placeholder:text-slate-400"
+                placeholder="Search..."
+              />
+            </div>
+          </div>
+          <div className="max-h-[200px] overflow-y-auto py-1">
+            {!required && (
+              <button type="button" onClick={() => { setSelected(""); setOpen(false); }} className="w-full px-3 py-2 text-left text-sm text-slate-400 hover:bg-slate-50 transition-colors">
+                — None —
+              </button>
+            )}
+            {filtered.length === 0 ? (
+              <p className="px-3 py-4 text-center text-sm text-slate-400">No results found</p>
+            ) : filtered.map((opt) => (
+              <button
+                key={opt.id}
+                type="button"
+                onClick={() => { setSelected(opt.id); setOpen(false); }}
+                className={`w-full px-3 py-2 text-left text-sm transition-colors flex items-center gap-2 ${
+                  opt.id === selected
+                    ? "bg-blue-50 text-blue-700 font-semibold"
+                    : "text-slate-700 hover:bg-slate-50"
+                }`}
+              >
+                {opt.id === selected && (
+                  <svg className="w-4 h-4 text-blue-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7"/></svg>
+                )}
+                <span className="truncate">{opt.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 type TableConfig = {
   name: string;
@@ -404,9 +492,9 @@ export default function AdminDataManager({ apiBase, getAuthToken, onUnauthorized
                 <div className="mb-6 flex items-center justify-between gap-3 border-b border-blue-200/60 pb-4">
                   <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
                     {editingRow ? (
-                      <><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> Edit Record</>
+                      <><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> Edit {activeTable.label.replace(/ies$/, "y").replace(/s$/, "")}</>
                     ) : (
-                      <><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg> Add New Record</>
+                      <><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg> Add {activeTable.label.replace(/ies$/, "y").replace(/s$/, "")}</>
                     )}
                   </h3>
                   <button type="button" onClick={closeForm} className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-200/50 rounded-full transition-colors">
@@ -454,12 +542,13 @@ export default function AdminDataManager({ apiBase, getAuthToken, onUnauthorized
                             <option value="false">False</option>
                           </select>
                         ) : activeTable.foreign_keys?.[column] && lookups[column] ? (
-                          <select name={column} defaultValue={defaultValue} className="app-input" required={activeTable.required.includes(column)}>
-                            <option value="">— Select {humanize(column).replace(" Id", "")} —</option>
-                            {lookups[column].map((opt) => (
-                              <option key={opt.id} value={opt.id}>{opt.label}</option>
-                            ))}
-                          </select>
+                          <SearchableSelect
+                            name={column}
+                            options={lookups[column]}
+                            value={defaultValue}
+                            required={activeTable.required.includes(column)}
+                            placeholder={`Select ${humanize(column).replace(/ Id$/, "")}...`}
+                          />
                         ) : activeTable.textarea.includes(column) || activeTable.json.includes(column) ? (
                           <textarea {...commonProps} rows={activeTable.json.includes(column) ? 7 : 4} />
                         ) : activeTable.dates.includes(column) ? (
@@ -515,14 +604,21 @@ export default function AdminDataManager({ apiBase, getAuthToken, onUnauthorized
                         <tr key={String(row.id)} className="transition-colors hover:bg-slate-50/50 group">
                           {visibleColumns.map((column) => {
                             const raw = row[column];
-                            let cellText = displayValue(raw);
-                            if (activeTable.foreign_keys?.[column] && lookups[column]) {
+                            const isFk = activeTable.foreign_keys?.[column] && lookups[column];
+                            if (isFk) {
                               const match = lookups[column].find((opt) => opt.id === String(raw));
-                              if (match) cellText = match.label;
+                              return (
+                                <td key={column} className="max-w-[200px] sm:max-w-[300px] px-4 py-3.5 truncate relative z-0">
+                                  <span title={match?.label || String(raw)} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-50 text-blue-700 text-xs font-semibold truncate max-w-full">
+                                    <svg className="w-3 h-3 shrink-0 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
+                                    {match ? match.label : displayValue(raw)}
+                                  </span>
+                                </td>
+                              );
                             }
                             return (
                             <td key={column} className="max-w-[200px] sm:max-w-[300px] px-4 py-3.5 text-slate-600 truncate relative z-0">
-                              <span title={String(cellText)} className="truncate block">{cellText}</span>
+                              <span title={String(displayValue(raw))} className="truncate block">{displayValue(raw)}</span>
                             </td>
                             );
                           })}
