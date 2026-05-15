@@ -88,6 +88,7 @@ YOUR ADVISORY FRAMEWORK (30-Year Veteran Approach):
 2. Advanced Risk Analysis: Always look for hidden pitfalls. Point out inflation erosion in endowments, lock-in illiquidity in ULIPs, or hidden medical sub-limits in health insurance.
 3. Strategic & Phased Advice: Give highly structured, step-by-step strategic roadmaps for the user. Think like a Chief Wealth Officer advising an HNI client.
 4. Empathy & Authority: Speak with the calm, assuring, and commanding authority of a seasoned industry titan.
+5. Strict Language Mandate: You MUST answer exclusively in English. Under no circumstances should you output Chinese characters, pinyin, or any other language.
 """
 
 def _chunk_text(chunk: Dict) -> str:
@@ -244,7 +245,8 @@ def expand_query(query: str, history: List[Dict]) -> str:
         "You are an AI assistant that rewrites a user's follow-up question into a standalone, "
         "comprehensive query based on the conversation history. "
         "Do NOT answer the question. ONLY return the rewritten standalone question. "
-        "If the question is already standalone, return it exactly as is without changes."
+        "If the question is already standalone, return it exactly as is without changes. "
+        "MUST be in English."
     )
     
     user_prompt = f"Conversation History:\n{history_text}\n\nFollow-up Question: {query}\n\nRewritten Standalone Question:"
@@ -303,6 +305,7 @@ def generate_answer(query: str, context_chunks: List[Dict], history: Optional[Li
         "If the user asks a conversational question related to finance, answer smoothly and naturally.\n"
         "If they ask about specific rules or regulations, use the context provided but explain it in a clear, highly intelligent way. Use paragraphs and bullet points where helpful to organize information beautifully.\n"
         "DO NOT be a robot. DO NOT force bullet points on every single sentence. Be naturally conversational while remaining strictly accurate to the context.\n"
+        "CRITICAL LANGUAGE RULE: You MUST write your entire response strictly in English. Do NOT output any Chinese characters or any other language.\n"
     )
 
     # Inject user profile for personalized answers
@@ -371,6 +374,7 @@ def generate_grounded_answer(
     context_chunks: List[Dict],
     history: Optional[List[Dict]] = None,
     profile_summary: str = "",
+    structured_context: str = "",
 ) -> str:
     """
     Strict grounded answering using retrieved evidence.
@@ -408,10 +412,11 @@ def generate_grounded_answer(
         f"{PERSONA_PROMPT}\n\n"
         "CONTEXT PRIORITY (follow this order strictly):\n"
         "1. QUESTION — Focus entirely on what the user is actually asking RIGHT NOW. Understand the real intent first.\n"
-        "2. RETRIEVED EVIDENCE — Use the document context below as your primary source of truth.\n"
-        "3. CONVERSATION HISTORY — Use previous messages to understand follow-ups and ongoing topics.\n"
-        "4. PROFILE DATA — Read the intelligent profile rules below before using profile information.\n"
-        "5. GENERAL KNOWLEDGE — If evidence is insufficient, use your finance expertise but clearly say so.\n\n"
+        "2. STRUCTURED DATABASE FACTS — Product and legal database facts are authoritative for product names, insurers, eligibility, and legal rules.\n"
+        "3. RETRIEVED EVIDENCE — Use document context as supporting evidence.\n"
+        "4. CONVERSATION HISTORY — Use previous messages to understand follow-ups and ongoing topics.\n"
+        "5. PROFILE DATA — Read the intelligent profile rules below before using profile information.\n"
+        "6. GENERAL KNOWLEDGE — Use only cautiously when database/RAG evidence is unavailable; say what must be verified.\n\n"
         "INTELLIGENT PROFILE USAGE (this is critical):\n"
         "You have access to the user's profile data. However, you MUST intelligently decide WHETHER to use it:\n"
         "- FIRST, analyze the question and conversation: WHO is the question actually about?\n"
@@ -442,12 +447,14 @@ def generate_grounded_answer(
     user_prompt_parts = []
     if conversation_context:
         user_prompt_parts.append(conversation_context)
+    if structured_context:
+        user_prompt_parts.append(structured_context)
     if context_text:
         user_prompt_parts.append(f"Retrieved evidence (PRIMARY source of truth):\n{context_text}")
     if catalog_context:
         user_prompt_parts.append(catalog_context)
     user_prompt_parts.append(f"Question: {query}")
-    if context_text:
+    if context_text or structured_context:
         user_prompt_parts.append("Answer naturally and directly. Do not include citations or source references in the answer body.")
     else:
         user_prompt_parts.append(
@@ -481,6 +488,7 @@ def stream_grounded_answer(
     context_chunks: List[Dict],
     history: Optional[List[Dict]] = None,
     profile_summary: str = "",
+    structured_context: str = "",
 ):
     """
     Streaming version of generate_grounded_answer.
@@ -503,7 +511,8 @@ def stream_grounded_answer(
         system_prompt = (
             "You are an expert financial and insurance analyst. "
             "A user has uploaded a document. Read it carefully and answer their question "
-            "clearly and concisely. Do not mention page numbers or citations."
+            "clearly and concisely. Do not mention page numbers or citations. "
+            "CRITICAL LANGUAGE RULE: You MUST write your entire response strictly in English. Do NOT output any Chinese characters or any other language."
         )
         user_prompt = (
             f"Document: {doc_name}\n"
@@ -552,10 +561,11 @@ def stream_grounded_answer(
         f"{PERSONA_PROMPT}\n\n"
         "CONTEXT PRIORITY (follow this order strictly):\n"
         "1. QUESTION — Focus entirely on what the user is actually asking RIGHT NOW. Understand the real intent first.\n"
-        "2. RETRIEVED EVIDENCE — Use the document context below as your primary source of truth.\n"
-        "3. CONVERSATION HISTORY — Use previous messages to understand follow-ups and ongoing topics.\n"
-        "4. PROFILE DATA — Read the intelligent profile rules below before using profile information.\n"
-        "5. GENERAL KNOWLEDGE — If evidence is insufficient, use your finance expertise but clearly say so.\n\n"
+        "2. STRUCTURED DATABASE FACTS — Product and legal database facts are authoritative for product names, insurers, eligibility, and legal rules.\n"
+        "3. RETRIEVED EVIDENCE — Use document context as supporting evidence.\n"
+        "4. CONVERSATION HISTORY — Use previous messages to understand follow-ups and ongoing topics.\n"
+        "5. PROFILE DATA — Read the intelligent profile rules below before using profile information.\n"
+        "6. GENERAL KNOWLEDGE — Use only cautiously when database/RAG evidence is unavailable; say what must be verified.\n\n"
         "INTELLIGENT PROFILE USAGE (this is critical):\n"
         "You have access to the user's profile data. However, you MUST intelligently decide WHETHER to use it:\n"
         "- FIRST, analyze the question and conversation: WHO is the question actually about?\n"
@@ -585,11 +595,13 @@ def stream_grounded_answer(
     # ── Build first user turn: system context (RAG evidence) ──
     # The first user message injects evidence + instructions; history follows as real turns
     first_user_parts = []
+    if structured_context:
+        first_user_parts.append(structured_context)
     if context_text:
         first_user_parts.append(f"Retrieved evidence (use as primary source of truth):\n{context_text}")
     if catalog_context:
         first_user_parts.append(catalog_context)
-    if context_text:
+    if context_text or structured_context:
         first_user_parts.append("Answer naturally and directly. Do not include citations or source references.")
     else:
         first_user_parts.append(
@@ -622,12 +634,14 @@ def stream_grounded_answer(
     else:
         # No history — single turn with full context in user message
         user_prompt_parts = []
+        if structured_context:
+            user_prompt_parts.append(structured_context)
         if context_text:
             user_prompt_parts.append(f"Retrieved evidence (PRIMARY source of truth):\n{context_text}")
         if catalog_context:
             user_prompt_parts.append(catalog_context)
         user_prompt_parts.append(f"Question: {query}")
-        if context_text:
+        if context_text or structured_context:
             user_prompt_parts.append("Answer naturally and directly. Do not include citations or source references in the answer body.")
         else:
             user_prompt_parts.append(

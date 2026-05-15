@@ -11,6 +11,7 @@ from app.services.retrieval import retrieve_context, confidence_for_chunks
 from app.services.memory import create_session, delete_session, get_all_sessions, get_recent_messages, get_session_history, save_message, session_belongs_to_user
 from app.services.profile import get_profile as fetch_profile
 from app.services.profile import build_profile_suggestions, get_profile_primary_goals, get_profile_summary, upsert_profile
+from app.services.structured_knowledge import build_structured_context, validate_structured_answer
 
 router = APIRouter()
 settings = get_settings()
@@ -60,6 +61,53 @@ import io
 
 def _chunk_page_number(chunk: dict):
     return chunk.get("page_start", chunk.get("page_number"))
+
+
+def _source_from_chunk(chunk: dict) -> SourceCitation:
+    preview = _chunk_text(chunk)[:100].replace('\n', ' ') + "..."
+    return SourceCitation(
+        chunk_id=chunk.get("chunk_id"),
+        document_id=chunk.get("document_id"),
+        document_title=chunk.get('document_title', 'Unknown Document'),
+        page_start=chunk.get("page_start"),
+        page_end=chunk.get("page_end"),
+        section_title=chunk.get("section_title"),
+        page_number=_chunk_page_number(chunk),
+        chunk_preview=preview,
+        relevance_score=chunk.get('blended_score', chunk.get('similarity', 0.0))
+    )
+
+
+def _merge_source_citations(rag_sources: list[SourceCitation], structured_citations: list[dict]) -> list[SourceCitation]:
+    merged: list[SourceCitation] = []
+    seen: set[tuple[str, str, str]] = set()
+
+    for source in rag_sources:
+        key = (
+            source.document_title or "",
+            source.section_title or "",
+            source.chunk_id or source.chunk_preview or "",
+        )
+        if key not in seen:
+            seen.add(key)
+            merged.append(source)
+
+    for citation in structured_citations or []:
+        source = SourceCitation(**citation)
+        key = (
+            source.document_title or "",
+            source.section_title or "",
+            source.chunk_id or source.chunk_preview or "",
+        )
+        if key not in seen:
+            seen.add(key)
+            merged.append(source)
+
+    return merged[:12]
+
+
+def _sources_as_dicts(sources: list[SourceCitation]) -> list[dict]:
+    return [source.model_dump() for source in sources]
 
 @router.post("/api/chat/parse-document")
 async def parse_document(file: UploadFile = File(...)):
@@ -130,31 +178,23 @@ async def chat(request: ChatRequest, user_id: str = Depends(get_current_user_id)
             top_chunks = []
             confidence = 0.0
 
-        answer = generate_grounded_answer(
-            query=request.question,
-            context_chunks=top_chunks,
-            history=history,
-            profile_summary=profile_summary,
-        )
+        structured = build_structured_context(request.question, evidence_chunks=top_chunks)
+
+        if structured.get("deterministic_answer"):
+            answer = structured["deterministic_answer"]
+        else:
+            answer = generate_grounded_answer(
+                query=request.question,
+                context_chunks=top_chunks,
+                history=history,
+                profile_summary=profile_summary,
+                structured_context=structured["context"],
+            )
+            answer = validate_structured_answer(answer, structured)
         assistant_message = save_message(session_id, user_id, "assistant", answer)
         
-        # 6. Map citations
-        sources = []
-        for chunk in top_chunks:
-            preview = _chunk_text(chunk)[:100].replace('\n', ' ') + "..."
-            sources.append(
-                SourceCitation(
-                    chunk_id=chunk.get("chunk_id"),
-                    document_id=chunk.get("document_id"),
-                    document_title=chunk.get('document_title', 'Unknown Document'),
-                    page_start=chunk.get("page_start"),
-                    page_end=chunk.get("page_end"),
-                    section_title=chunk.get("section_title"),
-                    page_number=_chunk_page_number(chunk),
-                    chunk_preview=preview,
-                    relevance_score=chunk.get('blended_score', chunk.get('similarity', 0.0))
-                )
-            )
+        rag_sources = [_source_from_chunk(chunk) for chunk in top_chunks]
+        sources = _merge_source_citations(rag_sources, structured["citations"])
             
         return ChatResponse(
             answer=answer,
@@ -248,6 +288,7 @@ async def chat_stream(request: ChatRequest, user_id: str = Depends(get_current_u
     if adhoc_chunk:
         top_chunks = [adhoc_chunk]
         confidence = 1.0
+        structured = {"context": "", "citations": [], "products": []}
     else:
         # Run retrieval synchronously before streaming
         try:
@@ -263,41 +304,38 @@ async def chat_stream(request: ChatRequest, user_id: str = Depends(get_current_u
             print(f"Retrieval error in stream: {e}")
             top_chunks = []
             confidence = 0.0
+        structured = build_structured_context(raw_question, evidence_chunks=top_chunks)
 
     def event_generator():
         full_answer = []
         try:
-            for token in stream_grounded_answer(
-                query=raw_question,
-                context_chunks=top_chunks,
-                history=history,
-                profile_summary=profile_summary,
-            ):
-                full_answer.append(token)
-                yield f"data: {json.dumps({'type': 'token', 'content': token})}\n\n"
+            if structured.get("deterministic_answer"):
+                complete_text = structured["deterministic_answer"]
+                yield f"data: {json.dumps({'type': 'token', 'content': complete_text})}\n\n"
+            else:
+                for token in stream_grounded_answer(
+                    query=raw_question,
+                    context_chunks=top_chunks,
+                    history=history,
+                    profile_summary=profile_summary,
+                    structured_context=structured["context"],
+                ):
+                    full_answer.append(token)
+                    yield f"data: {json.dumps({'type': 'token', 'content': token})}\n\n"
 
-            # Save the complete answer
-            raw_complete_text = "".join(full_answer)
-            complete_text = _postprocess_grounded_answer(raw_complete_text)
-            if complete_text != raw_complete_text:
-                yield f"data: {json.dumps({'type': 'replace', 'content': complete_text})}\n\n"
+                # Save the complete answer
+                raw_complete_text = "".join(full_answer)
+                complete_text = validate_structured_answer(
+                    _postprocess_grounded_answer(raw_complete_text),
+                    structured,
+                )
+                if complete_text != raw_complete_text:
+                    yield f"data: {json.dumps({'type': 'replace', 'content': complete_text})}\n\n"
             assistant_message = save_message(session_id, user_id, "assistant", complete_text)
 
             # Build citations
-            sources = []
-            for chunk in top_chunks:
-                preview = _chunk_text(chunk)[:100].replace('\n', ' ') + "..."
-                sources.append({
-                    "chunk_id": chunk.get("chunk_id"),
-                    "document_id": chunk.get("document_id"),
-                    "document_title": chunk.get("document_title", "Unknown Document"),
-                    "page_start": chunk.get("page_start"),
-                    "page_end": chunk.get("page_end"),
-                    "section_title": chunk.get("section_title"),
-                    "page_number": _chunk_page_number(chunk),
-                    "chunk_preview": preview,
-                    "relevance_score": chunk.get("blended_score", chunk.get("similarity", 0.0)),
-                })
+            rag_sources = [_source_from_chunk(chunk) for chunk in top_chunks]
+            sources = _sources_as_dicts(_merge_source_citations(rag_sources, structured["citations"]))
 
             meta = {
                 "type": "done",
@@ -345,6 +383,7 @@ async def retrieval_debug(
         history = get_recent_messages(session_id, user_id, limit=50)
 
     retrieval = retrieve_context(query=query, history=history)
+    structured = build_structured_context(query, evidence_chunks=retrieval.get("final_chunks", []))
     return {
         "query": query,
         "session_id": session_id,
@@ -354,6 +393,17 @@ async def retrieval_debug(
         "vector_hits": retrieval.get("vector_hits", []),
         "keyword_hits": retrieval.get("keyword_hits", []),
         "final_chunks": retrieval.get("final_chunks", []),
+        "structured_context_preview": structured.get("context", "")[:4000],
+        "structured_citations": structured.get("citations", []),
+        "structured_products": [
+            {
+                "product_name": product.get("product_name"),
+                "insurer": (product.get("company") or {}).get("company_name"),
+                "product_category": product.get("product_category"),
+                "product_type": product.get("product_type"),
+            }
+            for product in structured.get("products", [])
+        ],
         "error": retrieval.get("error"),
     }
 
