@@ -86,6 +86,9 @@ export default function AdminDataManager({ apiBase, getAuthToken, onUnauthorized
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [rowToDelete, setRowToDelete] = useState<Record<string, unknown> | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   const visibleColumns = useMemo(() => {
     if (!activeTable) return [];
@@ -213,26 +216,33 @@ export default function AdminDataManager({ apiBase, getAuthToken, onUnauthorized
     [apiBase, authedFetch, formRow, formTable, loadRows, offset],
   );
 
-  const handleDelete = useCallback(
-    async (row: Record<string, unknown>) => {
-      if (!activeTable || !row.id) return;
-      const label = displayValue(row[activeTable.columns[0]] || row.id);
-      if (!window.confirm(`Delete ${label}? This cannot be undone.`)) return;
+  const confirmDelete = useCallback((row: Record<string, unknown>) => {
+    setRowToDelete(row);
+  }, []);
 
-      setError("");
-      setMessage("");
-      try {
-        await authedFetch(`${apiBase}/api/admin/data/${activeTable.name}/${row.id}`, {
-          method: "DELETE",
-        });
-        setMessage("Row deleted successfully.");
-        loadRows(activeTable, offset);
-      } catch (deleteError) {
-        setError(deleteError instanceof Error ? deleteError.message : "Failed to delete row.");
-      }
-    },
-    [activeTable, apiBase, authedFetch, loadRows, offset],
-  );
+  const executeDelete = useCallback(async () => {
+    if (!activeTable || !rowToDelete?.id) return;
+    
+    setIsDeleting(true);
+    setError("");
+    setMessage("");
+    try {
+      await authedFetch(`${apiBase}/api/admin/data/${activeTable.name}/${rowToDelete.id}`, {
+        method: "DELETE",
+      });
+      setMessage("Row deleted successfully.");
+      setRowToDelete(null);
+      loadRows(activeTable, offset);
+    } catch (deleteError) {
+      setError(deleteError instanceof Error ? deleteError.message : "Failed to delete row.");
+    } finally {
+      setIsDeleting(false);
+    }
+  }, [activeTable, apiBase, authedFetch, loadRows, offset, rowToDelete]);
+
+  const cancelDelete = useCallback(() => {
+    setRowToDelete(null);
+  }, []);
 
   const openCreate = useCallback(() => {
     setEditingRow(null);
@@ -247,79 +257,103 @@ export default function AdminDataManager({ apiBase, getAuthToken, onUnauthorized
   }, []);
 
   return (
-    <section className="grid min-h-[680px] gap-5 lg:grid-cols-[280px_1fr]">
-      <aside className="surface-card-strong rounded-[8px] p-4">
-        <div className="mb-4">
-          <p className="section-kicker">Structured Data</p>
-          <h2 className="section-title mt-2">Catalog Manager</h2>
-        </div>
-        <div className="max-h-[640px] space-y-5 overflow-y-auto pr-1">
-          {Object.entries(groups).map(([group, tables]) => (
-            <div key={group}>
-              <p className="mb-2 text-xs font-bold uppercase text-[var(--text-muted)]">{group}</p>
-              <div className="space-y-1">
-                {tables.map((table) => (
-                  <button
-                    key={table.name}
-                    type="button"
-                    onClick={() => {
-                      setActiveTable(table);
-                      setOffset(0);
-                      setQuery("");
-                      closeForm();
-                    }}
-                    className={`w-full rounded-[8px] px-3 py-2 text-left text-sm font-semibold transition ${
-                      activeTable?.name === table.name
-                        ? "bg-[rgba(0,123,229,0.10)] text-[var(--accent-primary)]"
-                        : "text-[var(--text-secondary)] hover:bg-white"
-                    }`}
-                  >
-                    {table.label}
-                  </button>
-                ))}
-              </div>
+    <section className="flex flex-col lg:flex-row min-h-[680px] gap-6 lg:gap-8">
+      {isSidebarOpen ? (
+        <aside className="w-full lg:w-[280px] shrink-0 surface-card rounded-[24px] p-5 border border-white/50 shadow-[0_8px_30px_rgba(0,0,0,0.04)] bg-white/60 backdrop-blur-xl animate-in slide-in-from-left-4 fade-in duration-200">
+          <div className="mb-6 flex items-start justify-between">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wider text-[var(--accent-primary)]">Structured Data</p>
+              <h2 className="text-xl font-bold text-[var(--text-primary)] mt-1">Catalog Manager</h2>
             </div>
-          ))}
-        </div>
-      </aside>
+            <button type="button" onClick={() => setIsSidebarOpen(false)} className="p-2 rounded-xl bg-blue-500/10 text-[var(--accent-primary)] hover:bg-blue-500/20 transition-colors" title="Close Sidebar">
+               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+            </button>
+          </div>
+          <div className="max-h-[640px] space-y-5 overflow-y-auto pr-1">
+            {Object.entries(groups).map(([group, tables]) => (
+              <div key={group}>
+                <p className="mb-2 text-xs font-bold uppercase text-[var(--text-muted)]">{group}</p>
+                <div className="space-y-1">
+                  {tables.map((table) => (
+                    <button
+                      key={table.name}
+                      type="button"
+                      onClick={() => {
+                        setActiveTable(table);
+                        setOffset(0);
+                        setQuery("");
+                        closeForm();
+                        if (window.innerWidth < 1024) setIsSidebarOpen(false);
+                      }}
+                      className={`w-full rounded-[14px] px-4 py-3 text-left text-sm font-semibold transition-all duration-200 block ${
+                        activeTable?.name === table.name
+                          ? "bg-[var(--accent-primary)] text-white shadow-md shadow-blue-500/20"
+                          : "text-[var(--text-secondary)] hover:bg-slate-50 hover:text-[var(--text-primary)] hover:shadow-sm"
+                      }`}
+                    >
+                      {table.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </aside>
+      ) : (
+        <aside className="w-full lg:w-auto shrink-0 flex justify-end lg:justify-start animate-in slide-in-from-left-2 fade-in duration-200">
+           <button type="button" onClick={() => setIsSidebarOpen(true)} className="p-3 rounded-xl bg-white shadow-sm border border-white/50 text-[var(--accent-primary)] hover:bg-blue-50 transition-colors" title="Open Sidebar">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 6h16M4 12h16M4 18h7"/></svg>
+           </button>
+        </aside>
+      )}
 
-      <div className="surface-card-strong rounded-[8px] p-5">
+      <div className="flex-1 min-w-0 surface-card rounded-[24px] p-6 lg:p-8 border border-white/50 shadow-[0_8px_30px_rgba(0,0,0,0.04)] bg-white/60 backdrop-blur-xl flex flex-col">
         {activeTable ? (
           <>
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <div>
-                <p className="section-kicker">{activeTable.group}</p>
-                <h2 className="mt-2 text-2xl font-semibold text-[var(--text-primary)]">{activeTable.label}</h2>
-                <p className="mt-1 max-w-3xl text-sm text-[var(--text-secondary)]">{activeTable.description}</p>
+            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+              <div className="min-w-0 flex-1">
+                <span className="inline-block px-3 py-1 rounded-full bg-[var(--accent-primary)]/10 text-[var(--accent-primary)] text-xs font-bold uppercase tracking-wider mb-2">{activeTable.group}</span>
+                <h2 className="text-2xl sm:text-3xl font-bold text-[var(--text-primary)] truncate">{activeTable.label}</h2>
+                <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[var(--text-secondary)]">{activeTable.description}</p>
               </div>
-              <button type="button" onClick={openCreate} className="primary-button px-4 py-3 text-sm">
-                Add row
+              <button type="button" onClick={openCreate} className="primary-button rounded-[14px] px-5 py-2.5 text-sm whitespace-nowrap shadow-md hover:shadow-lg transition-all shrink-0">
+                <span className="flex items-center gap-2">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+                  Add New Record
+                </span>
               </button>
             </div>
 
-            <div className="mt-5 flex flex-wrap items-center gap-3">
-              <input
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") loadRows(activeTable, 0);
-                }}
-                className="app-input min-w-[260px] flex-1"
-                placeholder={`Search ${activeTable.label.toLowerCase()}`}
-              />
-              <button type="button" onClick={() => loadRows(activeTable, 0)} className="secondary-button px-4 py-3 text-sm">
-                Search
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setQuery("");
-                  loadRows(activeTable, 0);
-                }}
-                className="secondary-button px-4 py-3 text-sm"
-              >
-                Refresh
-              </button>
+            <div className="mt-8 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+              <div className="relative flex-1 flex items-center">
+                <svg className="absolute left-3.5 text-slate-400 z-10 pointer-events-none" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                <input
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") loadRows(activeTable, 0);
+                  }}
+                  className="app-input w-full py-2.5 bg-white/80 focus:bg-white transition-colors"
+                  style={{ paddingLeft: '2.5rem' }}
+                  placeholder={`Search in ${activeTable.label}...`}
+                />
+              </div>
+              <div className="flex gap-2 shrink-0">
+                <button type="button" onClick={() => loadRows(activeTable, 0)} className="secondary-button rounded-[14px] px-5 py-2.5 text-sm font-medium bg-white hover:bg-slate-50 border-slate-200">
+                  Search
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setQuery("");
+                    loadRows(activeTable, 0);
+                  }}
+                  className="secondary-button rounded-[14px] px-4 py-2.5 text-sm font-medium bg-white hover:bg-slate-50 border-slate-200 flex items-center justify-center"
+                  aria-label="Refresh"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                </button>
+              </div>
             </div>
 
             {error ? (
@@ -334,30 +368,53 @@ export default function AdminDataManager({ apiBase, getAuthToken, onUnauthorized
             ) : null}
 
             {isCreating || editingRow ? (
-              <form onSubmit={handleSubmit} className="mt-5 rounded-[8px] border border-[var(--border-subtle)] bg-white/78 p-4">
-                <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                  <h3 className="text-base font-semibold text-[var(--text-primary)]">
-                    {editingRow ? "Edit row" : "Add row"}
+              <form onSubmit={handleSubmit} className="mt-6 rounded-2xl border border-blue-100 bg-blue-50/40 p-5 sm:p-6 shadow-inner animate-slide-in">
+                <div className="mb-6 flex items-center justify-between gap-3 border-b border-blue-200/60 pb-4">
+                  <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                    {editingRow ? (
+                      <><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> Edit Record</>
+                    ) : (
+                      <><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg> Add New Record</>
+                    )}
                   </h3>
-                  <button type="button" onClick={closeForm} className="secondary-button px-3 py-2 text-sm">
-                    Close
+                  <button type="button" onClick={closeForm} className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-200/50 rounded-full transition-colors">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
                   </button>
                 </div>
                 <div className="grid gap-4 md:grid-cols-2">
                   {activeTable.columns.map((column) => {
                     const label = humanize(column);
-                    const defaultValue = inputValue(column, editingRow?.[column], activeTable);
+                    
+                    // Auto-generate UUID for "id" column if creating
+                    let defaultValue = inputValue(column, editingRow?.[column], activeTable);
+                    if (column === "id" && !editingRow) {
+                       try {
+                         defaultValue = crypto.randomUUID();
+                       } catch (e) {
+                         defaultValue = `id_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+                       }
+                    }
+
+                    const isIdField = column === "id";
+                    const isReadOnly = isIdField || activeTable.readonly?.includes(column);
+
                     const commonProps = {
                       name: column,
                       defaultValue,
-                      className: "app-input",
+                      className: `app-input ${isReadOnly ? "bg-slate-50 cursor-not-allowed text-slate-500 opacity-80" : ""}`,
                       required: activeTable.required.includes(column),
+                      readOnly: isReadOnly,
                     };
                     return (
                       <label key={column} className={activeTable.textarea.includes(column) || activeTable.json.includes(column) ? "md:col-span-2" : ""}>
-                        <span className="field-label">
-                          {label}
-                          {activeTable.required.includes(column) ? " *" : ""}
+                        <span className="field-label flex items-center justify-between">
+                          <span>
+                            {label}
+                            {activeTable.required.includes(column) ? " *" : ""}
+                          </span>
+                          {isIdField && !editingRow && (
+                             <span className="text-[10px] uppercase text-blue-500 font-bold bg-blue-50 px-2 py-0.5 rounded-full">Auto-generated</span>
+                          )}
                         </span>
                         {activeTable.booleans.includes(column) ? (
                           <select name={column} defaultValue={editingRow?.[column] === false ? "false" : "true"} className="app-input">
@@ -378,51 +435,59 @@ export default function AdminDataManager({ apiBase, getAuthToken, onUnauthorized
                     );
                   })}
                 </div>
-                <button type="submit" disabled={isSaving} className="primary-button mt-5 px-5 py-3 text-sm">
+                <button type="submit" disabled={isSaving} className="primary-button rounded-[14px] mt-5 px-5 py-3 text-sm shadow-md">
                   {isSaving ? "Saving..." : editingRow ? "Save changes" : "Create row"}
                 </button>
               </form>
             ) : null}
 
-            <div className="mt-5 overflow-hidden rounded-[8px] border border-[var(--border-subtle)] bg-white/74">
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[860px] border-collapse text-left text-sm">
-                  <thead className="bg-[rgba(15,23,42,0.04)] text-xs uppercase text-[var(--text-muted)]">
+            <div className="mt-8 overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm flex flex-col min-w-0">
+              <div className="overflow-x-auto w-full">
+                <table className="w-full text-left text-sm whitespace-nowrap">
+                  <thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-500 border-b border-slate-200/80">
                     <tr>
                       {visibleColumns.map((column) => (
-                        <th key={column} className="px-3 py-3 font-bold">{humanize(column)}</th>
+                        <th key={column} className="px-4 py-3.5 font-bold">{humanize(column)}</th>
                       ))}
-                      <th className="px-3 py-3 font-bold">Actions</th>
+                      <th className="px-4 py-3.5 font-bold text-right sticky right-0 z-10 bg-slate-50 shadow-[-4px_0_10px_rgba(0,0,0,0.02)]">Actions</th>
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody className="divide-y divide-slate-100">
                     {isLoading ? (
                       <tr>
-                        <td colSpan={visibleColumns.length + 1} className="px-3 py-8 text-center text-[var(--text-secondary)]">
-                          Loading rows...
+                        <td colSpan={visibleColumns.length + 1} className="px-4 py-12 text-center text-slate-500">
+                          <div className="flex flex-col items-center justify-center gap-3">
+                            <div className="h-6 w-6 rounded-full border-2 border-blue-500 border-t-transparent animate-spin" />
+                            <p>Loading records...</p>
+                          </div>
                         </td>
                       </tr>
                     ) : rows.length === 0 ? (
                       <tr>
-                        <td colSpan={visibleColumns.length + 1} className="px-3 py-8 text-center text-[var(--text-secondary)]">
-                          No rows found.
+                        <td colSpan={visibleColumns.length + 1} className="px-4 py-12 text-center text-slate-500">
+                          <div className="flex flex-col items-center justify-center gap-2">
+                            <svg className="w-8 h-8 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5m8.25 3v6.75m0 0l-3-3m3 3l3-3M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" /></svg>
+                            <p>No records found in this table.</p>
+                          </div>
                         </td>
                       </tr>
                     ) : (
                       rows.map((row) => (
-                        <tr key={String(row.id)} className="border-t border-[var(--border-subtle)] align-top">
+                        <tr key={String(row.id)} className="transition-colors hover:bg-slate-50/50 group">
                           {visibleColumns.map((column) => (
-                            <td key={column} className="max-w-[260px] px-3 py-3 text-[var(--text-secondary)]">
-                              <span className="line-clamp-3 break-words">{displayValue(row[column])}</span>
+                            <td key={column} className="max-w-[200px] sm:max-w-[300px] px-4 py-3.5 text-slate-600 truncate relative z-0">
+                              <span title={String(displayValue(row[column]))} className="truncate block">{displayValue(row[column])}</span>
                             </td>
                           ))}
-                          <td className="px-3 py-3">
-                            <div className="flex gap-2">
-                              <button type="button" onClick={() => { setEditingRow(row); setIsCreating(false); }} className="secondary-button px-3 py-2 text-xs">
-                                Edit
+                          <td className="px-4 py-3.5 text-right sticky right-0 z-10 bg-white group-hover:bg-slate-50 transition-colors shadow-[-4px_0_10px_rgba(0,0,0,0.02)]">
+                            <div className="flex justify-end gap-2">
+                              <button type="button" onClick={() => { setEditingRow(row); setIsCreating(false); }} className="secondary-button rounded-[14px] px-3 py-1.5 text-xs font-semibold flex items-center gap-1.5 shadow-sm bg-white hover:bg-slate-50" title="Edit">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+                                <span>Edit</span>
                               </button>
-                              <button type="button" onClick={() => handleDelete(row)} className="secondary-button px-3 py-2 text-xs text-[var(--error)]">
-                                Delete
+                              <button type="button" onClick={() => confirmDelete(row)} className="rounded-[14px] px-3 py-1.5 text-xs font-semibold flex items-center gap-1.5 border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 hover:border-red-300 transition-colors shadow-sm" title="Delete">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6"/></svg>
+                                <span>Delete</span>
                               </button>
                             </div>
                           </td>
@@ -434,16 +499,16 @@ export default function AdminDataManager({ apiBase, getAuthToken, onUnauthorized
               </div>
             </div>
 
-            <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-[var(--text-secondary)]">
+            <div className="mt-5 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-slate-500 font-medium">
               <span>
-                Showing {rows.length ? offset + 1 : 0}-{offset + rows.length} of {count}
+                Showing <span className="text-slate-800">{rows.length ? offset + 1 : 0}-{offset + rows.length}</span> of <span className="text-slate-800">{count}</span> records
               </span>
               <div className="flex gap-2">
                 <button
                   type="button"
                   disabled={offset === 0}
                   onClick={() => loadRows(activeTable, Math.max(0, offset - PAGE_SIZE))}
-                  className="secondary-button px-4 py-2 text-sm"
+                  className="secondary-button rounded-[14px] px-4 py-2 text-sm font-medium bg-white hover:bg-slate-50 disabled:opacity-50 disabled:hover:bg-white"
                 >
                   Previous
                 </button>
@@ -451,7 +516,7 @@ export default function AdminDataManager({ apiBase, getAuthToken, onUnauthorized
                   type="button"
                   disabled={offset + PAGE_SIZE >= count}
                   onClick={() => loadRows(activeTable, offset + PAGE_SIZE)}
-                  className="secondary-button px-4 py-2 text-sm"
+                  className="secondary-button rounded-[14px] px-4 py-2 text-sm font-medium bg-white hover:bg-slate-50 disabled:opacity-50 disabled:hover:bg-white"
                 >
                   Next
                 </button>
@@ -464,6 +529,31 @@ export default function AdminDataManager({ apiBase, getAuthToken, onUnauthorized
           </div>
         )}
       </div>
+
+      {/* Custom Delete Confirmation Modal */}
+      {rowToDelete && activeTable && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-md bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-6">
+              <div className="w-12 h-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center mb-4">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6"/></svg>
+              </div>
+              <h3 className="text-xl font-bold text-slate-900 mb-2">Delete Record</h3>
+              <p className="text-sm text-slate-600 mb-6">
+                Are you sure you want to delete <strong className="text-slate-900">"{displayValue(rowToDelete[activeTable.columns[0]] || rowToDelete.id)}"</strong>? This action cannot be undone and will permanently remove this data from the system.
+              </p>
+              <div className="flex items-center gap-3 justify-end">
+                <button type="button" onClick={cancelDelete} disabled={isDeleting} className="secondary-button rounded-[14px] px-5 py-2.5 text-sm font-medium">
+                  Cancel
+                </button>
+                <button type="button" onClick={executeDelete} disabled={isDeleting} className="rounded-[14px] px-5 py-2.5 text-sm font-semibold bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 transition-colors shadow-md shadow-red-500/20">
+                  {isDeleting ? "Deleting..." : "Yes, delete record"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }
