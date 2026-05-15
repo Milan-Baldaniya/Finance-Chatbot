@@ -26,7 +26,7 @@ type AdminDataManagerProps = {
   onUnauthorized: () => void;
 };
 
-const PAGE_SIZE = 25;
+const PAGE_SIZE = 10;
 const SYSTEM_COLUMNS = ["id", "created_at", "updated_at", "performed_at", "completed_at"];
 
 function humanize(value: string) {
@@ -89,6 +89,7 @@ export default function AdminDataManager({ apiBase, getAuthToken, onUnauthorized
   const [rowToDelete, setRowToDelete] = useState<Record<string, unknown> | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
 
   const visibleColumns = useMemo(() => {
     if (!activeTable) return [];
@@ -259,7 +260,7 @@ export default function AdminDataManager({ apiBase, getAuthToken, onUnauthorized
   return (
     <section className="flex flex-col lg:flex-row min-h-[680px] gap-6 lg:gap-8">
       {isSidebarOpen ? (
-        <aside className="w-full lg:w-[280px] shrink-0 surface-card rounded-[24px] p-5 border border-white/50 shadow-[0_8px_30px_rgba(0,0,0,0.04)] bg-white/60 backdrop-blur-xl animate-in slide-in-from-left-4 fade-in duration-200">
+        <aside className="w-full lg:w-[280px] shrink-0 surface-card rounded-[24px] p-5 border border-white/50 shadow-[0_8px_30px_rgba(0,0,0,0.04)] bg-white/60 backdrop-blur-xl animate-in slide-in-from-left-4 fade-in duration-200 h-fit self-start lg:sticky lg:top-8 z-20">
           <div className="mb-6 flex items-start justify-between">
             <div>
               <p className="text-xs font-bold uppercase tracking-wider text-[var(--accent-primary)]">Structured Data</p>
@@ -270,37 +271,48 @@ export default function AdminDataManager({ apiBase, getAuthToken, onUnauthorized
             </button>
           </div>
           <div className="max-h-[640px] space-y-5 overflow-y-auto pr-1">
-            {Object.entries(groups).map(([group, tables]) => (
-              <div key={group}>
-                <p className="mb-2 text-xs font-bold uppercase text-[var(--text-muted)]">{group}</p>
-                <div className="space-y-1">
-                  {tables.map((table) => (
-                    <button
-                      key={table.name}
-                      type="button"
-                      onClick={() => {
-                        setActiveTable(table);
-                        setOffset(0);
-                        setQuery("");
-                        closeForm();
-                        if (window.innerWidth < 1024) setIsSidebarOpen(false);
-                      }}
-                      className={`w-full rounded-[14px] px-4 py-3 text-left text-sm font-semibold transition-all duration-200 block ${
-                        activeTable?.name === table.name
-                          ? "bg-[var(--accent-primary)] text-white shadow-md shadow-blue-500/20"
-                          : "text-[var(--text-secondary)] hover:bg-slate-50 hover:text-[var(--text-primary)] hover:shadow-sm"
-                      }`}
-                    >
-                      {table.label}
-                    </button>
-                  ))}
+            {Object.entries(groups).map(([group, tables]) => {
+              const isExpanded = expandedGroups[group] ?? true;
+              return (
+              <div key={group} className="border border-slate-100 rounded-[16px] bg-white/40 p-2 shadow-sm">
+                <button 
+                  type="button" 
+                  onClick={() => setExpandedGroups(prev => ({ ...prev, [group]: !(prev[group] ?? true) }))}
+                  className="flex w-full items-center justify-between p-2 focus:outline-none group/btn transition-colors hover:bg-slate-50/80 rounded-xl"
+                >
+                  <p className="text-xs font-bold uppercase tracking-wider text-slate-500 group-hover/btn:text-[var(--accent-primary)] transition-colors">{group}</p>
+                  <svg className={`w-4 h-4 text-slate-400 transition-transform duration-300 ${isExpanded ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7"/></svg>
+                </button>
+                <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isExpanded ? "max-h-[800px] opacity-100 mt-2" : "max-h-0 opacity-0"}`}>
+                  <div className="space-y-1 pb-1">
+                    {tables.map((table) => (
+                      <button
+                        key={table.name}
+                        type="button"
+                        onClick={() => {
+                          setActiveTable(table);
+                          setOffset(0);
+                          setQuery("");
+                          closeForm();
+                          if (window.innerWidth < 1024) setIsSidebarOpen(false);
+                        }}
+                        className={`w-full rounded-[14px] px-4 py-3 text-left text-sm font-semibold transition-all duration-200 block ${
+                          activeTable?.name === table.name
+                            ? "bg-[var(--accent-primary)] text-white shadow-md shadow-blue-500/20"
+                            : "text-[var(--text-secondary)] hover:bg-white hover:text-[var(--text-primary)] hover:shadow-sm"
+                        }`}
+                      >
+                        {table.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
-            ))}
+            )})}
           </div>
         </aside>
       ) : (
-        <aside className="w-full lg:w-auto shrink-0 flex justify-end lg:justify-start animate-in slide-in-from-left-2 fade-in duration-200">
+        <aside className="w-full lg:w-auto shrink-0 flex justify-end lg:justify-start animate-in slide-in-from-left-2 fade-in duration-200 h-fit self-start lg:sticky lg:top-8 z-20">
            <button type="button" onClick={() => setIsSidebarOpen(true)} className="p-3 rounded-xl bg-white shadow-sm border border-white/50 text-[var(--accent-primary)] hover:bg-blue-50 transition-colors" title="Open Sidebar">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 6h16M4 12h16M4 18h7"/></svg>
            </button>
