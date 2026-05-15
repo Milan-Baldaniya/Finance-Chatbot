@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
+import AdminDataManager from "./AdminDataManager";
 
 type Summary = {
   total_documents: number;
@@ -69,6 +70,7 @@ export default function AdminUploadClient({ userEmail }: { userEmail: string }) 
   const [isLoading, setIsLoading] = useState(true);
   const [isMounted, setIsMounted] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [activeModule, setActiveModule] = useState<"ingestion" | "data">("ingestion");
   const [error, setError] = useState("");
   const [results, setResults] = useState<UploadResult[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -202,6 +204,7 @@ export default function AdminUploadClient({ userEmail }: { userEmail: string }) 
   }, [domain, fetchAdminData, files, getAuthToken, isUploading, router, sourceGroup, title, version]);
 
   const selectedSize = files.reduce((total, file) => total + file.size, 0);
+  const handleUnauthorized = useCallback(() => router.push("/sign-in"), [router]);
 
   if (!isMounted) {
     return (
@@ -211,7 +214,7 @@ export default function AdminUploadClient({ userEmail }: { userEmail: string }) 
             <div>
               <p className="section-kicker">Admin Console</p>
               <h1 className="mt-2 text-3xl font-semibold text-[var(--text-primary)]">
-                Knowledge base ingestion
+                Insurance knowledge control center
               </h1>
             </div>
             <span className="status-pill">{userEmail}</span>
@@ -231,7 +234,7 @@ export default function AdminUploadClient({ userEmail }: { userEmail: string }) 
           <div>
             <p className="section-kicker">Admin Console</p>
             <h1 className="mt-2 text-3xl font-semibold text-[var(--text-primary)]">
-              Knowledge base ingestion
+              Insurance knowledge control center
             </h1>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -247,6 +250,31 @@ export default function AdminUploadClient({ userEmail }: { userEmail: string }) 
             {error}
           </div>
         ) : null}
+
+        <div className="flex flex-wrap gap-2 rounded-[8px] border border-[var(--border-subtle)] bg-white/70 p-2">
+          {[
+            ["ingestion", "PDF ingestion"],
+            ["data", "Product & legal data"],
+          ].map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setActiveModule(key as "ingestion" | "data")}
+              className={`rounded-[8px] px-4 py-2 text-sm font-semibold transition ${
+                activeModule === key
+                  ? "bg-[var(--accent-primary)] text-white"
+                  : "text-[var(--text-secondary)] hover:bg-white"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {activeModule === "data" ? (
+          <AdminDataManager apiBase={API_BASE} getAuthToken={getAuthToken} onUnauthorized={handleUnauthorized} />
+        ) : (
+          <>
 
         <section className="grid gap-3 md:grid-cols-4">
           {[
@@ -413,6 +441,8 @@ export default function AdminUploadClient({ userEmail }: { userEmail: string }) 
             </div>
           </div>
         </section>
+          </>
+        )}
       </div>
     </main>
   );

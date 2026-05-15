@@ -76,6 +76,7 @@ export default function ProfilePage() {
   const [message, setMessage] = useState('')
   const [hasPreexisting, setHasPreexisting] = useState(false)
   const [primaryGoals, setPrimaryGoals] = useState<string[]>(defaultPrimaryGoals)
+  const [isAdmin, setIsAdmin] = useState(false)
   const supabaseRef = useRef<ReturnType<typeof createClient> | null>(null)
   const router = useRouter()
   const isMotorGoal =
@@ -124,6 +125,14 @@ export default function ProfilePage() {
           setProfile(data)
           setHasPreexisting(Boolean(data.has_preexisting_conditions))
           setPrimaryGoals(parsePrimaryGoals(data.primary_insurance_goal))
+        }
+
+        const authResponse = await fetch(`${API_BASE}/api/auth/me`, {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        })
+        if (authResponse.ok) {
+          const authData = await authResponse.json()
+          setIsAdmin(Boolean(authData.is_admin))
         }
       } catch (error) {
         console.error('Error loading profile:', error)
@@ -239,13 +248,24 @@ export default function ProfilePage() {
 
           </div>
 
-          <button
-            type="button"
-            onClick={() => router.push('/')}
-            className="secondary-button w-full px-5 py-3 text-sm min-[437px]:w-auto"
-          >
-            Back to chat
-          </button>
+          <div className="flex w-full flex-col gap-2 min-[437px]:w-auto min-[437px]:flex-row">
+            {isAdmin ? (
+              <button
+                type="button"
+                onClick={() => router.push('/admin')}
+                className="primary-button w-full px-5 py-3 text-sm min-[437px]:w-auto"
+              >
+                Manage product & legal data
+              </button>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => router.push('/')}
+              className="secondary-button w-full px-5 py-3 text-sm min-[437px]:w-auto"
+            >
+              Back to chat
+            </button>
+          </div>
         </div>
 
         <div>

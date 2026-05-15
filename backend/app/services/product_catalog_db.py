@@ -58,6 +58,11 @@ class CatalogCache:
 _cache = CatalogCache()
 
 
+def clear_product_catalog_cache() -> None:
+    global _cache
+    _cache = CatalogCache()
+
+
 def _normalize(text: str) -> str:
     return re.sub(r"[^a-z0-9]+", " ", (text or "").lower()).strip()
 

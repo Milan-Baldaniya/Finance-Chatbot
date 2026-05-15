@@ -47,6 +47,11 @@ class LegalCache:
 _cache = LegalCache()
 
 
+def clear_legal_cache() -> None:
+    global _cache
+    _cache = LegalCache()
+
+
 def _normalize(text: str) -> str:
     return re.sub(r"[^a-z0-9]+", " ", (text or "").lower()).strip()
 
